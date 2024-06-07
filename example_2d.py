@@ -20,7 +20,9 @@ a_list = TT([ot.unif(K1), ot.unif(K2)])
 weights = TT(ot.unif(2))
 
 # map 1: R^2 -> R^2
-P1 = lambda X: torch.sin(10 * X)  # element-wise sine
+t = np.pi/4
+R = TT(torch.tensor([[np.cos(t), np.sin(t)], [-np.sin(t), np.cos(t)]]))
+P1 = lambda X: torch.sin(10 * X) @ R  # element-wise sine
 
 # maps 2: R^2 -> R^2
 A2 = TT(torch.tensor([[2, .5], [0, 3]]))
