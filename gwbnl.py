@@ -1,5 +1,5 @@
 import numpy as np
-import ot
+import ot  # type: ignore
 import torch
 from torch.optim import SGD
 from torch.optim.lr_scheduler import ExponentialLR
@@ -56,8 +56,8 @@ def TT(x):
 
 
 def solve_NLGWB_GD(X_list, a_list, weights, P_list, L, d, b_unif=True,
-                   its=300, 
-                   eta_init=10, 
+                   its=300,
+                   eta_init=10,
                    gamma=.98, pbar=True, return_exit_status=False, stop_threshold=1e-5):
     """
     Solves the Nonlinear Generalised Wasserstein Barycentre problem using GD
@@ -67,7 +67,7 @@ def solve_NLGWB_GD(X_list, a_list, weights, P_list, L, d, b_unif=True,
         a_list: list of p (K_i) measure weights
         weights: array of the p barycentre coefficients
         P_list: list of p pytorch auto-differentiable functions
-        :math:`\mathbb{R}^{d_i} \longrightarrow \mathbb{R}^d`
+        :math:`\\mathbb{R}^{d_i} \\longrightarrow \\mathbb{R}^d`
         L: number of barycentre points to optimise
         d: dimension of the barycentre points
         b_unif: boolean toggling uniform barycentre or optimised weights
@@ -80,7 +80,7 @@ def solve_NLGWB_GD(X_list, a_list, weights, P_list, L, d, b_unif=True,
 
     Returns:
         Y: array of (L, d) barycentre
-        points b: array (L) of barycentre weights 
+        points b: array (L) of barycentre weights
         loss_list: list of (its) loss values each iteration
         (optional) exit_status: status of the algorithm at the final iteration
     """
@@ -89,7 +89,7 @@ def solve_NLGWB_GD(X_list, a_list, weights, P_list, L, d, b_unif=True,
     opt_params = []  # torch parameters for torch.optim.SGD
 
     # Init barycentre positions Y (normal)
-    Y = torch.randn((L, d), device=device, dtype=torch.double,      
+    Y = torch.randn((L, d), device=device, dtype=torch.double,
                     requires_grad=True)
     opt_params.append({'params': Y})
 
@@ -100,7 +100,7 @@ def solve_NLGWB_GD(X_list, a_list, weights, P_list, L, d, b_unif=True,
         b.requires_grad_()
         opt_params.append({'params': b})
     else:
-        b = torch.tensor(ot.unif(L), device=device, dtype=torch.double, 
+        b = torch.tensor(ot.unif(L), device=device, dtype=torch.double,
                          requires_grad=False)
 
     # Prepare GD loop
@@ -134,7 +134,7 @@ def solve_NLGWB_GD(X_list, a_list, weights, P_list, L, d, b_unif=True,
             # Update progress bar info
             if pbar:
                 iterator.set_description('loss={:.5e}'.format(loss.item()))
-            
+
             # Apply constraint projections to weights b
             with torch.no_grad():
                 if not b_unif:
