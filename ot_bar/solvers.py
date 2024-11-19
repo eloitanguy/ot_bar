@@ -1,58 +1,13 @@
-import numpy as np
 import ot  # type: ignore
 import torch
 from torch.optim import SGD
 from torch.optim.lr_scheduler import ExponentialLR
 from tqdm.auto import trange
+from ot.backend import get_backend  # type: ignore
 
 
 class StoppingCriterionReached(Exception):
     pass
-
-
-def TN(x):
-    """
-    Returns a numpy version of the array or list of arrays given as input
-
-    Args:
-        x: torch tensor or list thereof
-    """
-    if isinstance(x, list) or isinstance(x, tuple):
-        return [TN(o) for o in x]
-
-    if torch.is_tensor(x):
-        return x.detach().cpu().numpy()
-
-    if isinstance(x, np.ndarray):
-        return x
-
-    raise TypeError('Expected a numpy array or a torch tensor')
-
-
-def TT(x):
-    """
-    Returns a torch version (cuda if possible and dtype = double)
-    of the array or list of arrays given as input
-
-    Args:
-        x: numpy tensor or list thereof
-    """
-    if isinstance(x, list) or isinstance(x, tuple):
-        return [TT(o) for o in x]
-
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-    if isinstance(x, np.ndarray):
-        return torch.tensor(x, dtype=torch.double, device=device)
-
-    if torch.is_tensor(x):
-        if device not in str(x.device):  # check if on the right device
-            x = x.to(device)
-        if x.dtype != torch.double:
-            x = x.double()
-        return x
-
-    raise TypeError('Expected a numpy array or a torch tensor')
 
 
 def solve_NLGWB_GD(X_list, a_list, weights, P_list, L, d, b_unif=True,
@@ -149,3 +104,37 @@ def solve_NLGWB_GD(X_list, a_list, weights, P_list, L, d, b_unif=True,
             return Y, b, loss_list[1:], exit_status
         else:
             return Y, b, loss_list[1:]
+
+
+def solve_OT_barycenter_fixed_point(X, Y_list, cost_list, B,
+                                    max_its=300, pbar=False):
+    """
+    Solves the OT barycenter problem using the fixed point algorithm, iterating
+    the function B on plans between the current barycentre and the measures.
+
+    Args:
+        X: (n, d) array of barycentre points
+        Y_list: list of K (n_k, d_k) arrays
+        cost_list: list of K cost functions
+        B: function from R^d_1 x ... x R^d_K to R^d accepting K arrays of shape
+        (n, d_K)
+        max_its: maximum number of iterations
+        pbar: whether to display a progress bar
+
+    Returns:
+        X: (n, d) array of barycentre points
+    """
+    nx = get_backend(X, Y_list[0])
+    K = len(Y_list)
+    iterator = trange(max_its) if pbar else range(max_its)
+    n = X.shape[0]
+    a = nx.from_numpy(ot.unif(n))
+
+    for _ in iterator:
+        pi_list = [ot.emd(a, a, cost_list[k](X, Y_list[k])) for k in range(K)]
+        Y_perm = []
+        for k in range(K):
+            Y_perm.append(n * pi_list[k] @ Y_list[k])
+        X = B(Y_perm)
+
+    return X
