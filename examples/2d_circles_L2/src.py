@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import ot  # type: ignore
 from torch.optim import SGD
 import matplotlib.animation as animation
+from matplotlib import cm
 
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -19,7 +20,7 @@ a_list = TT([ot.unif(n)] * K)  # weights of the 4 measures
 weights = TT(ot.unif(n))  # weights for the barycentre
 
 
-# map 1: R^2 -> R^2 projection onto circle
+# map R^2 -> R^2 projection onto circle
 def proj_circle(X: torch.tensor, origin: torch.tensor, radius: float):
     diffs = X - origin[None, :]
     norms = torch.norm(diffs, dim=1)
@@ -27,7 +28,8 @@ def proj_circle(X: torch.tensor, origin: torch.tensor, radius: float):
 
 
 # build a measure as a 2D circle
-t = np.linspace(0, 2 * np.pi, n, endpoint=False)
+# t = np.linspace(0, 2 * np.pi, n, endpoint=False)
+t = np.random.rand(n) * 2 * np.pi
 X = .5 * TT(torch.tensor([np.cos(t), np.sin(t)]).T)
 X = X + TT(torch.tensor([.5, .5]))[None, :]
 origin1 = TT(torch.tensor([-1, -1]))
@@ -57,7 +59,7 @@ X_bar, b, loss_list, exit_status = solve_NLGWB_GD(Y_list, a_list, weights,
                                                   its=its, stop_threshold=stop_threshold,
                                                   gamma=gamma)
 dt = time() - t0
-print(f"Finished in {dt:.2f}s, exit status: {exit_status}, final loss: {loss_list[-1]:.2f}")
+print(f"Finished in {dt:.2f}s, exit status: {exit_status}, final loss: {loss_list[-1]:.10f}")
 
 # %% Plot GD barycentre
 alpha = .5
@@ -106,15 +108,21 @@ y_idx = [n // 5, 2 * n // 5, 3 * n // 5, 4 * n // 5]
 y = [(Y_list[k][y_idx[k]])[None, :] * torch.ones_like(x, device=device) for k in range(4)]
 M = C(x, y)  # shape (n_vis**2)
 M = TN(M.reshape(n_vis, n_vis))
-plt.imshow(M.T, interpolation="nearest", origin="lower", cmap='gray')
-plt.savefig('B_energy_map.pdf')
+
+fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+surf = ax.plot_surface(uu, vv, M, cmap=cm.CMRmap, linewidth=0,
+                       antialiased=False)
+for axis in [ax.xaxis, ax.yaxis, ax.zaxis]:
+    axis.set_ticklabels([])
+plt.savefig("B_energy_map.pdf", format="pdf", bbox_inches="tight")
+plt.show(block=True)
 
 # %% define B using GD on its energy
 np.random.seed(42)
 torch.manual_seed(42)
 
 
-def B(y, its=100, lr=1, log=False):
+def B(y, its=250, lr=1, log=False):
     """
     Computes the barycenter images for candidate points x (n, d) and
     measure supports y: List(n, d_k).
@@ -191,8 +199,9 @@ ani = animation.FuncAnimation(fig, update, frames=num_frames, blit=True)
 ani.save("fixed_point_barycentre_animation.gif", writer="pillow", fps=2)
 
 # %% First 5 steps on a subplot
-fig, axes = plt.subplots(1, 5, figsize=(15, 3))  # 1 row, 5 columns
-fig.suptitle("First 5 Steps Fixed-point GWB solver", fontsize=16)
+n_plots = 5
+fig, axes = plt.subplots(1, n_plots, figsize=(3 * n_plots, 3))
+fig.suptitle(f"First {n_plots} Steps Fixed-point GWB solver", fontsize=16)
 
 for i, ax in enumerate(axes):
     for Y, label in zip(Y_list, labels):
@@ -204,6 +213,6 @@ for i, ax in enumerate(axes):
     ax.set_xlim(-.3, 1.3)
     ax.set_ylim(-.3, 1.3)
     ax.set_title(f"Step {i+1}", y=-0.2)
-plt.savefig('gwb_circles_fixed_point_5_steps.pdf')
+plt.savefig(f'gwb_circles_fixed_point_{n_plots}_steps.pdf')
 
 # %%

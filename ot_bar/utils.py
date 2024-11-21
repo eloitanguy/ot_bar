@@ -45,3 +45,25 @@ def TT(x):
         return x
 
     raise TypeError('Expected a numpy array or a torch tensor')
+
+
+def imageToGrid(image, constant_threshold=True):
+    """
+    Convert an image to an array (n_points,2) of points via thresholding
+    """
+
+    def condition(p):
+        if constant_threshold:
+            return p < 122.5
+        return p > np.max(image) * 0.5
+
+    x, y = image.shape
+
+    points = []
+
+    for i in range(x):
+        for j in range(y):
+            if condition(image[i, j]):
+                points.append([1 - 1. * i / x, 1. * j / y])
+
+    return np.array(points)
