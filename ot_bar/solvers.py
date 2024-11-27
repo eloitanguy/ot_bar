@@ -106,7 +106,7 @@ def solve_NLGWB_GD(X_list, a_list, weights, P_list, L, d, b_unif=True,
             return Y, b, loss_list[1:]
 
 
-def solve_OT_barycenter_fixed_point(X, Y_list, cost_list, B,
+def solve_OT_barycenter_fixed_point(X, Y_list, b_list, cost_list, B,
                                     max_its=300, pbar=False, log=False):
     """
     Solves the OT barycenter problem using the fixed point algorithm, iterating
@@ -115,6 +115,7 @@ def solve_OT_barycenter_fixed_point(X, Y_list, cost_list, B,
     Args:
         X: (n, d) array of barycentre points
         Y_list: list of K (n_k, d_k) arrays
+        b_list: list of K (n_k) arrays of weights
         cost_list: list of K cost functions R^d x R^d_k -> R_+
         B: function from R^d_1 x ... x R^d_K to R^d accepting K arrays of shape
         (n, d_K)
@@ -133,7 +134,7 @@ def solve_OT_barycenter_fixed_point(X, Y_list, cost_list, B,
     X_list = [X]
 
     for _ in iterator:
-        pi_list = [ot.emd(a, a, cost_list[k](X, Y_list[k])) for k in range(K)]
+        pi_list = [ot.emd(a, b_list[k], cost_list[k](X, Y_list[k])) for k in range(K)]
         Y_perm = []
         for k in range(K):
             Y_perm.append(n * pi_list[k] @ Y_list[k])
