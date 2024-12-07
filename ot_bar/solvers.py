@@ -262,7 +262,7 @@ def gmm_barycentre_cost_tensor(means_list, covs_list, weights):
     return M
 
 
-def solve_gmm_barycentre_multi_marginal(means_list, covs_list, w_list, weights, 
+def solve_gmm_barycentre_multi_marginal(means_list, covs_list, w_list, weights,
                                         eps=1e-5):
     r"""
     Computes the Mixed-W2 barycentre of the given GMMs with weights w

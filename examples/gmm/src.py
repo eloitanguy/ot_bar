@@ -63,7 +63,7 @@ means_bar, covs_bar, a = solve_gmm_barycentre_multi_marginal(
     means_list, covs_list, w_list, weights)
 
 axis = [-2, 7, -1, 7]
-plt.figure(1, (4, 4))
+plt.figure(1, (6, 6))
 plt.clf()
 for k in range(K):
     draw_gmm(means_list[k], covs_list[k], w_list[k], color='C0')
