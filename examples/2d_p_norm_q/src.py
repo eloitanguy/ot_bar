@@ -52,7 +52,7 @@ def p_norm_q_cost_matrix(u, v, p, q):
 
 def C(x, y, p, q):
     """
-    Computes the barycenter cost for candidate points x (n, d) and
+    Computes the ground barycenter cost for candidate points x (n, d) and
     measure supports y: List(n, d_k).
     """
     n = x.shape[0]

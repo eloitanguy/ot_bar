@@ -4,6 +4,9 @@ from torch.optim import SGD
 from torch.optim.lr_scheduler import ExponentialLR
 from tqdm.auto import trange
 from ot.backend import get_backend  # type: ignore
+import numpy as np
+import cvxpy as cvx
+from itertools import product
 
 
 class StoppingCriterionReached(Exception):
@@ -14,7 +17,7 @@ def solve_NLGWB_GD(X_list, a_list, weights, P_list, L, d, b_unif=True,
                    its=300,
                    eta_init=10,
                    gamma=.98, pbar=True, return_exit_status=False, stop_threshold=1e-5):
-    """
+    r"""
     Solves the Nonlinear Generalised Wasserstein Barycentre problem using GD
 
     Args:
@@ -108,7 +111,7 @@ def solve_NLGWB_GD(X_list, a_list, weights, P_list, L, d, b_unif=True,
 
 def solve_OT_barycenter_fixed_point(X, Y_list, b_list, cost_list, B,
                                     max_its=300, pbar=False, log=False):
-    """
+    r"""
     Solves the OT barycenter problem using the fixed point algorithm, iterating
     the function B on plans between the current barycentre and the measures.
 
@@ -145,3 +148,152 @@ def solve_OT_barycenter_fixed_point(X, Y_list, b_list, cost_list, B,
     if log:
         return X, X_list
     return X
+
+
+def multi_marginal_L2_cost_tensor(Y_list, weights):
+    r"""
+    Computes the m_1 x ... x m_K tensor of costs for the multi-marginal problem
+    for the L2 cost.
+    """
+    K = len(Y_list)
+    m_list = [Y_list[k].shape[0] for k in range(K)]
+    M = np.zeros(m_list)
+    for indices in product(*[range(m) for m in m_list]):
+        # indices is (j1, ..., jK)
+        # y_slice is a K x d matrix Y1[j1] ... YK[jK]
+        y_slice = np.stack([Y_list[k][indices[k]] for k in range(K)], axis=0)
+        mean = weights @ y_slice  # (1, d)
+        norms = np.sum((mean - y_slice)**2, axis=1)  # (K,)
+        M[indices] = np.sum(weights * norms)
+    return M
+
+
+def solve_MMOT(b_list, M):
+    r"""
+    Solves the Multi-Marginal Optimal Transport problem with the given cost
+    matrix of shape (m_1, ..., m_K) and measure weights (b_1, ..., b_K) with b_k
+    in the m_k simplex.
+
+    Returns an optimal coupling coupling pi of shape (m_1, ..., m_K)
+    Adapted from https://github.com/judelo/gmmot/blob/master/python/gmmot.py#L210
+    """
+    K = len(b_list)
+    m_list = [len(b) for b in b_list]
+
+    pi_flat = cvx.Variable(np.prod(m_list))
+    constraints = [pi_flat >= 0]
+    index = 0
+    A = np.zeros((np.sum(m_list), np.prod(m_list)))
+    b = np.zeros(np.sum(m_list))
+    for i in range(K):
+        m = m_list[i]
+        b[index:index + m] = b_list[i]
+        for k in range(m):
+            Ap = np.zeros(m_list)
+            tup = ()
+            for j in range(K):
+                if j == i:
+                    tup += (k,)
+                else:
+                    tup += (slice(0, m_list[j]),)
+            Ap[tup] = 1
+            A[index + k, :] = Ap.flatten()
+        index += m
+    constraints += [A @ pi_flat == b]
+
+    objective = cvx.sum(cvx.multiply(M.flatten(), pi_flat))
+    prob = cvx.Problem(cvx.Minimize(objective), constraints)
+    prob.solve()
+    return (pi_flat.value).reshape(*m_list)
+
+
+def solve_w2_barycentre_multi_marginal(Y_list, b_list, weights, eps=1e-5):
+    r""""
+    Computes the W2 barycentre of the given measures y (m_k, d) with weights w
+    using the multi-marginal solver. The output will consider that there is mass
+    on a point if the mass is greater than eps / (m_1 * ... * m_K).
+    Expects numpy arrays.
+    """
+    M = multi_marginal_L2_cost_tensor(Y_list, weights)
+    pi = solve_MMOT(b_list, M)
+    m_list = [len(b) for b in b_list]
+    K = len(m_list)
+    d = Y_list[0].shape[1]
+
+    # indices with mass
+    indices = np.where(pi > eps / np.prod(m_list))
+    n = len(indices[0])  # size of the support of the solution
+    a = pi[indices]  # barycentre weights
+
+    # barycentre support
+    X = np.zeros((n, d))
+    for i, idx_tuple in enumerate(zip(*indices)):
+        # y_slice is (Y1[j1], ..., YK[jK]) stacked into shape (K, d)
+        y_slice = np.stack([Y_list[k][idx_tuple[k]] for k in range(K)], axis=0)
+        X[i] = weights @ y_slice
+    a = a / np.sum(a)
+    return X, a
+
+
+def gmm_barycentre_cost_tensor(means_list, covs_list, weights):
+    """
+    Computes the m_1 x ... x m_K tensor of costs for the Gaussian Mixture multi-marginal problem.
+    """
+    K = len(means_list)
+    m_list = [means_list[k].shape[0] for k in range(K)]
+    M = np.zeros(m_list)
+    for indices in product(*[range(m) for m in m_list]):
+        # indices is (j1, ..., jK)
+        # means is a K x d matrix means1[j1] ... meansK[jK]
+        # covs is a K x d x d tensor covs1[j1] ... covsK[jK]
+        means_slice = np.stack([means_list[k][indices[k]] for k in range(K)],
+                               axis=0)
+        covs_slice = np.stack([covs_list[k][indices[k]] for k in range(K)],
+                              axis=0)
+        mean_bar, cov_bar = ot.gaussian.bures_wasserstein_barycenter(
+            means_slice, covs_slice, weights)
+        # cost at j1 ... jK is the weighted sum over kW2 distance between the
+        # barycentre of the (N(m_l_jl, C_l_jl))_l and N(m_k_jk, C_k_jk)
+        cost = 0
+        for k in range(K):
+            cost += weights[k] * ot.gaussian.bures_wasserstein_distance(
+                mean_bar, means_slice[k], cov_bar, covs_slice[k])
+        M[indices] = cost
+    return M
+
+
+def solve_gmm_barycentre_multi_marginal(means_list, covs_list, w_list, weights, 
+                                        eps=1e-5):
+    r"""
+    Computes the Mixed-W2 barycentre of the given GMMs with weights w
+    using the multi-marginal solver. The output will consider that there is mass
+    on a point if the mass is greater than eps / (m_1 * ... * m_K).
+    Expects numpy arrays.
+    """
+    M = gmm_barycentre_cost_tensor(means_list, covs_list, weights)
+    pi = solve_MMOT(w_list, M)
+    K = len(means_list)
+    m_list = [means_list[k].shape[0] for k in range(K)]
+    d = means_list[0].shape[1]
+
+    # indices with mass
+    indices = np.where(pi > eps / np.prod(m_list))
+    n = len(indices[0])  # size of the support of the solution
+    a = pi[indices]  # barycentre weights
+
+    # barycentre support
+    means = np.zeros((n, d))
+    covs = np.zeros((n, d, d))
+    for i, idx_tuple in enumerate(zip(*indices)):
+        # means is a K x d matrix means1[j1] ... meansK[jK]
+        # covs is a K x d x d tensor covs1[j1] ... covsK[jK]
+        means_slice = np.stack([means_list[k][idx_tuple[k]] for k in range(K)],
+                               axis=0)
+        covs_slice = np.stack([covs_list[k][idx_tuple[k]] for k in range(K)],
+                              axis=0)
+        # w2 barycentre of the slices
+        mean_bar, cov_bar = ot.gaussian.bures_wasserstein_barycenter(
+            means_slice, covs_slice, weights)
+        means[i], covs[i] = mean_bar, cov_bar
+    a = a / a.sum()
+    return means, covs, a
