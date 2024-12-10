@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
+from ot.gmm import gmm_pdf
 
 
 def TN(x):
@@ -107,7 +108,7 @@ def plot_runs(runs, x=None, ax=None, curve_labels=None, title='', x_label='',
     plt.tight_layout()
 
 
-def get_random_GMM(K, d, seed=0, min_cov_eig=1, cov_scale=1e-2):
+def get_random_gmm(K, d, seed=0, min_cov_eig=1, cov_scale=1e-2):
     rng = np.random.RandomState(seed=seed)
     means = rng.randn(K, d)
     P = rng.randn(K, d, d) * cov_scale
@@ -119,7 +120,7 @@ def get_random_GMM(K, d, seed=0, min_cov_eig=1, cov_scale=1e-2):
     return means, covariances, weights
 
 
-def draw_cov(mu, C, color=None, label=None, nstd=1, alpha=0.5):
+def draw_cov(mu, C, color=None, label=None, nstd=1, alpha=0.5, ax=None):
     def eigsorted(cov):
         if torch.is_tensor(cov):
             cov = cov.detach().numpy()
@@ -141,10 +142,28 @@ def draw_cov(mu, C, color=None, label=None, nstd=1, alpha=0.5):
         label=label,
         fill=True,
     )
-    plt.gca().add_artist(ell)
+    if ax is None:
+        ax = plt.gca()
+    ax.add_artist(ell)
 
 
-def draw_gmm(ms, Cs, ws, color=None, nstd=0.5, alpha=1, label=None):
+def draw_gmm(ms, Cs, ws, color=None, nstd=0.5, alpha=1, label=None, ax=None):
     for k in range(ms.shape[0]):
         draw_cov(ms[k], Cs[k], color, label if k == 0 else None,
-                 nstd, alpha * ws[k])
+                 nstd, alpha * ws[k], ax=ax)
+
+
+def draw_gmm_contour(means, covs, w,
+                     n=50, ax=0, bx=1, ay=0, by=1, cmap='viridis', axis=None):
+
+    if axis is None:
+        axis = plt.gca()
+
+    x = np.linspace(ax, bx, num=n)
+    y = np.linspace(ay, by, num=n)
+    X, Y = np.meshgrid(x, y)
+    XX = np.array([X.ravel(), Y.ravel()]).T
+    Z = gmm_pdf(XX, means, covs, w)
+    Z = Z.reshape(X.shape)
+    plt.axis('equal')
+    return axis.contour(X, Y, Z, 8, cmap=cmap)

@@ -1,7 +1,7 @@
 # %%
 import numpy as np
 import torch
-from ot_bar.solvers import solve_OT_barycenter_fixed_point, solve_NLGWB_GD, StoppingCriterionReached
+from ot_bar.solvers import solve_OT_barycenter_fixed_point, solve_OT_barycenter_GD, StoppingCriterionReached
 from ot_bar.utils import TT, TN
 import matplotlib.pyplot as plt
 from time import time
@@ -19,7 +19,7 @@ n = 100  # number of points of the of the barycentre
 d = 2  # dimensions of the original measure
 K = 4  # number of measures to barycentre
 m = 50  # number of points of the measures
-a_list = TT([ot.unif(m)] * K)  # weights of the 4 measures
+b_list = TT([ot.unif(m)] * K)  # weights of the 4 measures
 weights = TT(ot.unif(K))  # weights for the barycentre
 
 
@@ -51,42 +51,6 @@ for k in range(K):
     Y_list.append(P_list[k](X_temp))
 
 
-# %% Find generalised barycenter using gradient descent
-# optimiser parameters
-learning_rate = 30  # initial learning rate
-its = 2000  # Gradient Descent iterations
-stop_threshold = 1e-20  # stops if |loss_{t+1} - loss_{t}| < this
-gamma = 1  # learning rate at step t is initial learning rate * gamma^t
-np.random.seed(42)
-torch.manual_seed(42)
-t0 = time()
-X_bar, b, loss_list, exit_status = solve_NLGWB_GD(Y_list, a_list, weights,
-                                                  P_list, n, d, return_exit_status=True, eta_init=learning_rate,
-                                                  its=its, stop_threshold=stop_threshold,
-                                                  gamma=gamma)
-dt = time() - t0
-print(f"Finished in {dt:.2f}s, exit status: {exit_status}, final loss: {loss_list[-1]:.10f}")
-
-# %% Plot GD barycentre
-alpha = .5
-labels = ['circle 1', 'circle 2', 'circle 3', 'circle 4']
-for Y, label in zip(Y_list, labels):
-    plt.scatter(*TN(Y).T, alpha=alpha, label=label)
-plt.scatter(*TN(X_bar).T, label='GWB', c='black', alpha=alpha)
-plt.axis('equal')
-plt.axis('off')
-plt.xlim(-.3, 1.3)
-plt.ylim(-.3, 1.3)
-plt.legend(loc='upper right')
-plt.savefig('gwb_circles_gd.pdf')
-
-# %% Plot GD barycentre loss
-plt.plot(loss_list)
-plt.yscale('log')
-plt.savefig('gwb_circles_gd_loss.pdf')
-
-
-# %% Solve with fixed-point iterations: studying the energy for the function B
 # cost_list[k] is a function taking x (n, d) and y (n_k, d_k) and returning a
 # (n, n_k) matrix of costs
 def c1(x, y):
@@ -106,8 +70,40 @@ def c4(x, y):
 
 
 cost_list = [c1, c2, c3, c4]
+# %% Find generalised barycenter using gradient descent
+# optimiser parameters
+learning_rate = 30  # initial learning rate
+its = 2000  # Gradient Descent iterations
+stop_threshold = 1e-5  # stops if |X_{t+1} - X_{t}| / |X_t| < this
+gamma = 1  # learning rate at step t is initial learning rate * gamma^t
+np.random.seed(42)
+torch.manual_seed(42)
+t0 = time()
+X_bar, a, log_dict = solve_OT_barycenter_GD(
+    Y_list, b_list, weights, cost_list, n, d, eta_init=learning_rate, its=its, stop_threshold=stop_threshold, gamma=gamma, log=True)
+dt = time() - t0
+print(f"Finished in {dt:.2f}s, exit status: {log_dict['exit_status']}, final loss: {log_dict['loss_list'][-1]:.10f}")
+
+# %% Plot GD barycentre
+alpha = .5
+labels = ['circle 1', 'circle 2', 'circle 3', 'circle 4']
+for Y, label in zip(Y_list, labels):
+    plt.scatter(*TN(Y).T, alpha=alpha, label=label)
+plt.scatter(*TN(X_bar).T, label='GWB', c='black', alpha=alpha)
+plt.axis('equal')
+plt.axis('off')
+plt.xlim(-.3, 1.3)
+plt.ylim(-.3, 1.3)
+plt.legend(loc='upper right')
+plt.savefig('gwb_circles_gd.pdf')
+
+# %% Plot GD barycentre loss
+plt.plot(log_dict['loss_list'])
+plt.yscale('log')
+plt.savefig('gwb_circles_gd_loss.pdf')
 
 
+# %% Solve with fixed-point iterations: studying the energy for the function B
 def C(x, y):
     """
     Computes the barycenter cost for candidate points x (n, d) and
@@ -144,7 +140,7 @@ np.random.seed(42)
 torch.manual_seed(42)
 
 
-def B(y, its=250, lr=1, log=False, stop_threshold=1e-20):
+def B(y, its=150, lr=1, log=False, stop_threshold=stop_threshold):
     """
     Computes the barycenter images for candidate points x (n, d) and
     measure supports y: List(n, d_k).
@@ -157,12 +153,15 @@ def B(y, its=250, lr=1, log=False, stop_threshold=1e-20):
     exit_status = 'unknown'
     try:
         for _ in range(its):
+            x_prev = x.data.clone()
             opt.zero_grad()
             loss = torch.sum(C(x, y))
             loss.backward()
             opt.step()
             loss_list.append(loss.item())
-            if stop_threshold > loss_list[-2] - loss_list[-1] >= 0:
+            diff = torch.sum((x.data - x_prev)**2)
+            current = torch.sum((x_prev)**2)
+            if diff / current < stop_threshold:
                 exit_status = 'Local optimum'
                 raise StoppingCriterionReached
         exit_status = 'Max iterations reached'
@@ -180,7 +179,7 @@ pi_list = [ot.emd(a, b, cost_list[k](X_init, Y_list[k])) for k in range(K)]
 Y_perm = []
 for k in range(K):
     Y_perm.append(n * pi_list[k] @ Y_list[k])
-Bx, log = B(Y_perm, its=500, lr=1, log=True)
+Bx, log = B(Y_perm, its=150, lr=1, log=True)
 plt.plot(log['loss_list'])
 plt.yscale('log')
 plt.savefig('gwb_circles_B_loss.pdf')
@@ -190,19 +189,21 @@ plt.savefig('gwb_circles_B_loss.pdf')
 np.random.seed(0)
 torch.manual_seed(0)
 
+t0 = time()
 fixed_point_its = 15
 X_init = torch.rand(n, d, device=device, dtype=torch.double)
 b_list = [TT(ot.unif(m))] * K
-X_bar, X_bar_list = solve_OT_barycenter_fixed_point(X_init, Y_list, b_list,
-                                                    cost_list,
-                                                    B, max_its=fixed_point_its, pbar=True, log=True)
+X_bar, log_dict = solve_OT_barycenter_fixed_point(
+    X_init, Y_list, b_list, cost_list, B, max_its=fixed_point_its, pbar=True, log=True, stop_threshold=stop_threshold)
+dt = time() - t0
+print(f"Finished in {dt:.2f}s, exit status: {log_dict['exit_status']}")
 
 # %% plot fixed-point barycentre final step
 alpha = .5
 labels = ['circle 1', 'circle 2', 'circle 3', 'circle 4']
 for Y, label in zip(Y_list, labels):
     plt.scatter(*TN(Y).T, alpha=alpha, label=label)
-plt.scatter(*TN(X_bar_list[-1]).T, label='GWB', c='black', alpha=alpha)
+plt.scatter(*TN(log_dict['X_list'][-1]).T, label='GWB', c='black', alpha=alpha)
 plt.axis('equal')
 plt.xlim(-.3, 1.3)
 plt.ylim(-.3, 1.3)
@@ -211,7 +212,7 @@ plt.legend()
 plt.savefig('gwb_circles_fixed_point.pdf')
 
 # %% animate fixed-point barycentre steps
-num_frames = fixed_point_its + 1  # +1 for initialisation
+num_frames = len(log_dict['X_list'])
 fig, ax = plt.subplots()
 ax.set_xlim(-.3, 1.3)
 ax.set_ylim(-.3, 1.3)
@@ -230,7 +231,7 @@ ax.legend(loc="upper right")
 
 def update(frame):  # Update function for animation
     # Update moving scatterplot data
-    moving_scatter.set_offsets(TN(X_bar_list[frame]))
+    moving_scatter.set_offsets(TN(log_dict['X_list'][frame]))
     return moving_scatter,
 
 
@@ -245,7 +246,7 @@ fig.suptitle(f"First {n_plots} Steps Fixed-point GWB solver", fontsize=16)
 for i, ax in enumerate(axes):
     for Y, label in zip(Y_list, labels):
         ax.scatter(*TN(Y).T, alpha=alpha, label=label)
-    ax.scatter(*TN(X_bar_list[i]).T, label='GWB', c='black', alpha=alpha)
+    ax.scatter(*TN(log_dict['X_list'][i]).T, label='GWB', c='black', alpha=alpha)
     ax.axis('equal')
     ax.axis('off')
     ax.set_xlim(-.3, 1.3)
@@ -257,7 +258,7 @@ plt.savefig(f'gwb_circles_fixed_point_{n_plots}_steps.pdf')
 V_list = []
 a = TT(ot.unif(n))
 b = TT(ot.unif(m))
-for X in X_bar_list:
+for X in log_dict['X_list']:
     V = 0
     for k in range(K):
         V += (1 / K) * ot.emd2(a, b, ot.dist(P_list[k](X), Y_list[k]))
@@ -266,16 +267,5 @@ plt.plot(V_list)
 plt.xlabel('iteration')
 plt.ylabel('V')
 plt.savefig('gwb_circles_fixed_point_V.pdf')
-
-# %%
-X = X_bar_list[0]
-pi_list = [ot.emd(a, b, cost_list[k](X, Y_list[k])) for k in range(K)]
-Y_perm = []
-for k in range(K):
-    Y_perm.append(n * pi_list[k] @ Y_list[k])
-X, log = B(Y_perm, log=True)
-plt.plot(log['loss_list'])
-plt.yscale('log')
-plt.savefig('gwb_circles_B_loss.pdf')
 
 # %%
