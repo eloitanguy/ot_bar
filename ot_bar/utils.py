@@ -24,7 +24,7 @@ def TN(x):
     raise TypeError('Expected a numpy array or a torch tensor')
 
 
-def TT(x):
+def TT(x, device=None):
     """
     Returns a torch version (cuda if possible and dtype = double)
     of the array or list of arrays given as input
@@ -35,7 +35,8 @@ def TT(x):
     if isinstance(x, list) or isinstance(x, tuple):
         return [TT(o) for o in x]
 
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    if device is None:
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
     if isinstance(x, np.ndarray):
         return torch.tensor(x, dtype=torch.double, device=device)
@@ -73,7 +74,7 @@ def imageToGrid(image, constant_threshold=True):
 
 
 def plot_runs(runs, x=None, ax=None, curve_labels=None, title='', x_label='',
-              x_scale_log=False, y_scale_log=False):
+              x_scale_log=False, y_scale_log=False, legend_loc='upper right'):
     r"""
     Plots runs, a numpy array of size (n_curve_params, n_x_params, n_runs),
     corresponding to experiments results with different samples for each
@@ -91,21 +92,21 @@ def plot_runs(runs, x=None, ax=None, curve_labels=None, title='', x_label='',
         x = np.arange(n_x)
     for run, label in zip(runs, curve_labels):
         ax.plot(x,
-                np.median(run, axis=0),
+                np.median(run, axis=1),
                 label=label)
         ax.fill_between(x,
-                        np.quantile(run, .3, axis=0),
-                        np.quantile(run, .7, axis=0),
+                        np.quantile(run, .3, axis=1),
+                        np.quantile(run, .7, axis=1),
                         alpha=.3)
 
     ax.set_title(title)
     ax.set_xlabel(x_label)
     if x_scale_log:
-        plt.xscale('log')
+        ax.set_xscale('log')
     if y_scale_log:
-        plt.yscale('log')
-    plt.legend()
-    plt.tight_layout()
+        ax.set_yscale('log')
+    if x_label != '':
+        ax.legend(loc=legend_loc)
 
 
 def get_random_gmm(K, d, seed=0, min_cov_eig=1, cov_scale=1e-2):

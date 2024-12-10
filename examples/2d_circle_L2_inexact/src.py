@@ -142,8 +142,7 @@ torch.manual_seed(42)
 
 def B(y, its=150, lr=1, log=False, stop_threshold=stop_threshold):
     """
-    Computes the barycenter images for candidate points x (n, d) and
-    measure supports y: List(n, d_k).
+    Computes the barycenter images for measure supports y: List(n, d_k).
     Output: (n, d) array
     """
     x = torch.randn(n, d, device=device, dtype=torch.double)

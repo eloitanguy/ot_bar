@@ -16,7 +16,7 @@ class StoppingCriterionReached(Exception):
 
 
 def solve_OT_barycenter_GD(Y_list, b_list, weights, cost_list, n, d,
-                           a_unif=True, its=300, eta_init=10, gamma=.98, pbar=True, stop_threshold=1e-5, log=False,
+                           a_unif=True, its=300, eta_init=10, gamma=.98, pbar=False, stop_threshold=1e-5, log=False,
                            device=None):
     r"""
     Solves the Optimal Transport Barycentre problem using Gradient Descent on
@@ -157,8 +157,7 @@ def solve_OT_barycenter_fixed_point(X, Y_list, b_list, cost_list, B,
     cost_list : list of callable
         List of K cost functions R^d x R^d_k -> R_+.
     B : callable
-        Function from R^d_1 x ... x R^d_K to R^d accepting K arrays of shape (n,
-        d_K), computing the "ground barycentre".
+        Function from R^d_1 x ... x R^d_K to R^d accepting a list of K arrays of shape (n, d_K), computing the "ground barycentre".
     max_its : int, optional
         Maximum number of iterations (default is 300).
     stop_threshold : float, optional
@@ -172,8 +171,8 @@ def solve_OT_barycenter_fixed_point(X, Y_list, b_list, cost_list, B,
     -------
     X : array-like
         Array of shape (n, d) representing barycentre points.
-    X_list : list of array-like, optional
-        List of iterations if log is True.
+    log_dict : list of array-like, optional
+        log containing the exit status and list of iterations if log is True.
     """
     nx = get_backend(X, Y_list[0])
     K = len(Y_list)
