@@ -14,32 +14,38 @@ from tqdm import tqdm
 np.random.seed(42)
 torch.manual_seed(42)
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+colours = ['#7ED321', '#4A90E2', '#9013FE']
 
-K = 2
+K = 3
 d = 2
 n = 400
 
 I1 = pl.imread("../data/redcross.png").astype(np.float64)[::4, ::4, 2]
 I2 = pl.imread("../data/duck.png").astype(np.float64)[::4, ::4, 2]
+I3 = pl.imread("../data/heart.png").astype(np.float64)[::4, ::4, 2]
 
 sz = I2.shape[0]
 XX, YY = np.meshgrid(np.arange(sz), np.arange(sz))
 
 Y1 = np.stack((XX[I1 == 0], YY[I1 == 0]), 1) * 1.0
 Y2 = np.stack((XX[I2 == 0] + 80, -YY[I2 == 0] + 32), 1) * 1.0
+Y3 = np.stack((XX[I3 == 0] + 40, -YY[I3 == 0] + 80), 1) * 1.0
 Y1 = Y1 + np.random.randn(*Y1.shape) * .3
 Y2 = Y2 + np.random.randn(*Y2.shape) * .3
+Y3 = Y3 + np.random.randn(*Y3.shape) * .3
 
-Y_list = TT([Y1, Y2])
-n1, n2 = Y1.shape[0], Y2.shape[0]
-b1, b2 = ot.unif(n1), ot.unif(n2)
-b_list = TT([b1, b2])
+Y_list = TT([Y1, Y2, Y3])
+m_list = [Y.shape[0] for Y in Y_list]
+b_list = TT([ot.unif(m) for m in m_list])
 a = TT(ot.unif(n))
 
-plt.figure(1, (12, 4))
-plt.scatter(*TN(Y1.T), alpha=0.5)
-plt.scatter(*TN(Y2.T), alpha=0.5)
+plt.figure(1, (6, 6))
+for Y in Y_list:
+    plt.scatter(*TN(Y.T), alpha=0.5)
 plt.title("Distributions")
+plt.axis('equal')
+plt.axis('off')
+plt.tight_layout()
 
 # %% Define costs and visualise landscapes
 p_list = [1.5, 2, 3]  # p-norms
@@ -140,19 +146,71 @@ for p_idx, p in enumerate(p_list):
 
 plt.savefig('B_losses.pdf')
 
-# %% apply fixed-point algorithm
+
+# %% fixed-point for (p, q) = (1.5, 1.5)
+p, q = 1.5, 1.5
+cost_list = [lambda x, y: p_norm_q_cost_matrix(x, y, p, q)] * K
+its = 4
+X_bar, log_dict = solve_OT_barycenter_fixed_point(
+    X_init, Y_list, b_list, cost_list, lambda y: B(y, p, q), max_its=its, log=True, stop_threshold=0.)
+
+# %% plot barycentre iterations
+fig = plt.figure(figsize=(its * 3, 3))
+for t, X in enumerate(log_dict['X_list']):
+    ax = fig.add_subplot(1, its + 1, t + 1)
+    ax.scatter(*TN(X.T), alpha=0.5)
+    ax.set_title(f'Iteration {t}', fontsize=14, y=0.95)
+    ax.axis('equal')
+    ax.axis('off')
+plt.tight_layout()
+plt.savefig('p_norm_q_barycentre_iterations.pdf')
+
+
+# %% plot energy evolution
+def V(X, Y_list, b_list, p, q):
+    v = 0
+    for k in range(K):
+        M = p_norm_q_cost_matrix(X, Y_list[k], p, q)
+        v += (1 / K) * ot.emd2(a, b_list[k], M)
+    if isinstance(v, torch.Tensor):
+        return v.item()
+    return v
+
+
+V_list = [V(X, Y_list, b_list, p, q) for X in log_dict['X_list']]
+plt.plot(V_list, linewidth=5, alpha=.8, color=colours[1])
+plt.title('V evolution by iteration')
+plt.xlabel('Iteration')
+plt.xticks(range(its + 1))
+plt.ylabel('V')
+plt.savefig('p_norm_q_barycentre_V.pdf')
+
+
+# %% Plot final iteration next to the measures
+plt.figure(1, (6, 4.5))
+for Y in Y_list:
+    plt.scatter(*TN(Y.T), alpha=0.5)
+plt.scatter(*TN(X_bar.T), alpha=0.5)
+plt.title("Barycentre for the cost $|x-y|_{3/2}^{3/2}$", fontsize=16)
+plt.axis('equal')
+plt.axis('off')
+plt.tight_layout()
+plt.savefig('p_norm_q_barycentre.pdf')
+
+# %% apply fixed-point algorithm for different p, q
 np.random.seed(0)
 torch.manual_seed(0)
 fixed_point_its = 5
+stop_threshold = 1e-10
 X_bar_dict = {}
 X_bar_list_dict = {}
 for p in tqdm(p_list):
     for q in q_list:
         cost_list = [lambda x, y: p_norm_q_cost_matrix(x, y, p, q)] * K
-        X_bar, X_bar_list = solve_OT_barycenter_fixed_point(
-            X_init, Y_list, b_list, cost_list, lambda y: B(y, p, q), max_its=fixed_point_its, log=True)
+        X_bar, log_dict = solve_OT_barycenter_fixed_point(
+            X_init, Y_list, b_list, cost_list, lambda y: B(y, p, q), max_its=fixed_point_its, log=True, stop_threshold=stop_threshold)
         X_bar_dict[(p, q)] = X_bar
-        X_bar_list_dict[(p, q)] = X_bar_list
+        X_bar_list_dict[(p, q)] = log_dict['X_list']
 
 # %% plot barycentres
 fig = plt.figure(figsize=(len(p_list) * 3, len(q_list) * 3))
@@ -161,11 +219,11 @@ for p_idx, p in enumerate(p_list):
         i = p_idx * len(q_list) + q_idx
         ax = fig.add_subplot(len(p_list), len(q_list), i + 1)
         X_bar = X_bar_dict[(p, q)]
-        plt.scatter(*TN(X_bar.T), alpha=0.5)
-        ax.set_title(f'Barycentre p={p}, q={q}', fontsize=12)
+        ax.scatter(*TN(X_bar.T), alpha=0.5)
+        ax.set_title(f'p={p}, q={q}', fontsize=12)
         ax.axis('equal')
         ax.axis('off')
-plt.savefig('p_norm_q_barycentres.pdf')
+plt.savefig('p_norm_q_barycentres_grid.pdf')
 
 # %% plot energy evolution
 fig = plt.figure(figsize=(len(p_list) * 3, len(q_list) * 3))
@@ -175,14 +233,10 @@ for p_idx, p in enumerate(p_list):
         ax = fig.add_subplot(len(p_list), len(q_list), i + 1)
         V_list = []
         for X_bar in X_bar_list_dict[(p, q)]:
-            V = 0
-            for k in range(K):
-                M = p_norm_q_cost_matrix(X_bar, Y_list[k], p, q)
-                V += (1 / K) * ot.emd2(a, b_list[k], M)
-            V_list.append(V.item())
+            V_list.append(V(X_bar, Y_list, b_list, p, q))
         ax.plot(V_list)
         ax.set_yscale('log')
-        ax.set_title(f'V p={p}, q={q}', fontsize=12)
+        ax.set_title(f'p={p}, q={q}', fontsize=12)
 plt.savefig('p_norm_q_barycentres_V.pdf')
 
 # %%

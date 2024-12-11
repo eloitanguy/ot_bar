@@ -136,7 +136,7 @@ plot_runs(dt_ratios, x=n_list, ax=axs[1],
           curve_labels=curve_labels, title='Time / Time MM', x_label='n', x_scale_log=False, y_scale_log=True, curve_colours=colours)
 plt.suptitle('Comparison of FP to MM for different measure sizes n',
              y=1.05, fontsize=14)
-plt.subplots_adjust(wspace=0.4) 
+plt.subplots_adjust(wspace=0.4)
 plt.savefig(xp_name + '.pdf')
 plt.show()
 
