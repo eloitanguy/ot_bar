@@ -10,8 +10,13 @@
         6
     ],
     "n_samples": 10,
-    "stop_threshold": 1e-05,
-    "fp_its": 3,
+    "stop_threshold": 1e-10,
+    "fp_its_list": [
+        1,
+        5,
+        10,
+        50
+    ],
     "gd_its": 1000,
     "gd_eta": 10,
     "gd_gamma": 1,

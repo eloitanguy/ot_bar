@@ -113,7 +113,7 @@ def solve_OT_barycenter_GD(Y_list, b_list, weights, cost_list, n, d,
 
             with torch.no_grad():
                 # stationary criterion: move less than the threshold
-                diff = torch.sum((X.data - X_prev)**2)
+                diff = ot.emd2(a, a, ot.dist(X.data, X_prev))
                 current = torch.sum(X_prev**2)
                 if diff / current < stop_threshold:
                     exit_status = 'Local optimum'
@@ -196,7 +196,7 @@ def solve_OT_barycenter_fixed_point(X, Y_list, b_list, cost_list, B,
                 X_list.append(X)
 
             # stationary criterion: move less than the threshold
-            diff = nx.sum((X - X_prev)**2)
+            diff = ot.emd2(a, a, ot.dist(X, X_prev))
             current = nx.sum(X_prev**2)
             if diff / current < stop_threshold:
                 exit_status = 'Stationary Point'

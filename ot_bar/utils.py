@@ -74,7 +74,8 @@ def imageToGrid(image, constant_threshold=True):
 
 
 def plot_runs(runs, x=None, ax=None, curve_labels=None, title='', x_label='',
-              x_scale_log=False, y_scale_log=False, legend_loc='upper right'):
+              x_scale_log=False, y_scale_log=False, legend_loc='upper right',
+              curve_colours=None):
     r"""
     Plots runs, a numpy array of size (n_curve_params, n_x_params, n_runs),
     corresponding to experiments results with different samples for each
@@ -88,16 +89,19 @@ def plot_runs(runs, x=None, ax=None, curve_labels=None, title='', x_label='',
     n_y, n_x, n_runs = runs.shape
     if curve_labels is None:
         curve_labels = [None] * n_y
+    if curve_colours is None:
+        cmap = plt.cm.get_cmap('Accent', n_y)
+        curve_colours = [cmap(i) for i in range(n_y)]
     if x is None:
         x = np.arange(n_x)
-    for run, label in zip(runs, curve_labels):
+    for run, label, colour in zip(runs, curve_labels, curve_colours):
         ax.plot(x,
                 np.median(run, axis=1),
-                label=label)
+                label=label, color=colour)
         ax.fill_between(x,
                         np.quantile(run, .3, axis=1),
                         np.quantile(run, .7, axis=1),
-                        alpha=.3)
+                        alpha=.3, color=colour)
 
     ax.set_title(title)
     ax.set_xlabel(x_label)
