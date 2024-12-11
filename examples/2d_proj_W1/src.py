@@ -14,6 +14,9 @@ P2 = np.array([[0, 1, 0], [0, 0, 1]])
 P3 = np.array([[1, 0, 0], [0, 0, 1]])
 P_list = [P1, P2, P3]
 
+c_list = ['#7ED321', '#4A90E2', '#9013FE']
+c_bar = '#D0021B'
+
 # first dataset should be the one with the smallest nb of points
 spider = plt.imread('spider.png')
 spider = 1 - spider[::4, ::4, 0]
@@ -38,6 +41,7 @@ Y3 = Y3[indices, :]
 
 Y_list = [Y1, Y2, Y3]
 weights = ot.unif(K)
+b_list = [ot.unif(n) for _ in range(K)]
 
 
 def cost1(X, Y):
@@ -75,50 +79,46 @@ def B(Y_list):
 # %% compute barycenter using the fixed point algorithm
 np.random.seed(0)
 X0 = np.random.rand(n, d)
-X, X_list = solve_OT_barycenter_fixed_point(X0, Y_list, cost_list,
-                                            B, max_its=30, pbar=True, log=True)
+X, log_dict = solve_OT_barycenter_fixed_point(
+    X0, Y_list, b_list, cost_list, B, max_its=30, pbar=True, log=True)
 
 # %%
 Y1_3D = Y1 @ P1
 Y2_3D = Y2 @ P2
 Y3_3D = Y3 @ P3
+Y_3D_list = [Y1_3D, Y2_3D, Y3_3D]
 
 fig = plt.figure(figsize=(7, 7))
 axis = fig.add_subplot(1, 1, 1, projection="3d")
 
-axis.scatter(X[:, 0], X[:, 1], X[:, 2], alpha=.5,
-             c='green', marker='.')
+axis.scatter(X[:, 0], X[:, 1], X[:, 2], alpha=.3,
+             c=c_bar, marker='o')
 
+for k in range(K):
+    axis.scatter(Y_3D_list[k][:, 0], Y_3D_list[k][:, 1], Y_3D_list[k][:, 2],
+                 alpha=.3, c=c_list[k], marker='o')
+
+axis.view_init(elev=30, azim=60)
+axis.set_xticks([])
+axis.set_yticks([])
+axis.set_zticks([])
+plt.tight_layout()
 plt.savefig("bar_3D.pdf", format="pdf", bbox_inches="tight")
 plt.show()
 
 # %%
-X1 = X @ P1.T
-plt.scatter(Y1[:, 0], Y1[:, 1], alpha=.5,
-            c='blue', marker='.')
-plt.scatter(X1[:, 0], X1[:, 1], alpha=.5,
-            c='green', marker='.')
-plt.savefig("bar_proj1.pdf", format="pdf", bbox_inches="tight")
-plt.show()
+fig, axs = plt.subplots(1, 3, figsize=(15, 5))
 
-# %%
-X2 = X @ P2.T
-plt.scatter(Y2[:, 0], Y2[:, 1], alpha=.5,
-            c='orange', marker='.')
-plt.scatter(X2[:, 0], X2[:, 1], alpha=.5,
-            c='green', marker='.')
-plt.savefig("bar_proj2.pdf", format="pdf", bbox_inches="tight")
+for k in range(K):
+    X_proj = X @ P_list[k].T
+    axs[k].scatter(Y_list[k][:, 0], Y_list[k][:, 1], alpha=.5,
+                   c=c_list[k], marker='o')
+    axs[k].scatter(X_proj[:, 0], X_proj[:, 1], alpha=.5,
+                   c=c_bar, marker='o')
+    axs[k].axis('off')
+plt.tight_layout()
+plt.savefig("bar_proj.pdf", format="pdf", bbox_inches="tight")
 plt.show()
-
-# %%
-X3 = X @ P3.T
-plt.scatter(Y3[:, 0], Y3[:, 1], alpha=.5,
-            c='orange', marker='.')
-plt.scatter(X3[:, 0], X3[:, 1], alpha=.5,
-            c='green', marker='.')
-plt.savefig("bar_proj2.pdf", format="pdf", bbox_inches="tight")
-plt.show()
-
 
 # %% animation
 # Send the input measures into 3D space for visualization
@@ -129,9 +129,9 @@ ax = fig.add_subplot(1, 1, 1, projection="3d")
 
 
 def _init():
-    for Yi in Y_visu:
-        ax.scatter(Yi[:, 0], Yi[:, 1], Yi[:, 2], marker='o', alpha=.6)
-    ax.scatter(X[:, 0], X[:, 1], X[:, 2], marker='o', alpha=.6)
+    for Yi, c in zip(Y_visu, c_list):
+        ax.scatter(Yi[:, 0], Yi[:, 1], Yi[:, 2], marker='o', alpha=.3, c=c)
+    ax.scatter(X[:, 0], X[:, 1], X[:, 2], marker='o', alpha=.3, c=c_bar)
     ax.view_init(elev=0, azim=0)
     ax.set_xticks([])
     ax.set_yticks([])
@@ -153,8 +153,10 @@ ani.save("barycenter_rotation.gif", writer="pillow", fps=10)
 # %%  Point-cloud distances between steps
 one_step_diffs = []
 a = ot.unif(n)
-for i in range(1, len(X_list)):
-    one_step_diffs.append(ot.emd2(a, a, ot.dist(X_list[i - 1], X_list[i])))
+for i in range(1, len(log_dict["X_list"])):
+    one_step_diffs.append(
+        ot.emd2(a, a, ot.dist(
+            (log_dict["X_list"])[i - 1], (log_dict["X_list"])[i])))
 
 plt.plot(one_step_diffs)
 plt.xlabel("Iteration")

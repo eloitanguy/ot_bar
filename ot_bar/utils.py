@@ -87,8 +87,10 @@ def plot_runs(runs, x=None, ax=None, curve_labels=None, title='', x_label='',
     if ax is None:
         _, ax = plt.subplots(1, 1, figsize=(5, 5))
     n_y, n_x, n_runs = runs.shape
+    all_labels_none = False
     if curve_labels is None:
         curve_labels = [None] * n_y
+        all_labels_none = True
     if curve_colours is None:
         cmap = plt.cm.get_cmap('Accent', n_y)
         curve_colours = [cmap(i) for i in range(n_y)]
@@ -109,7 +111,7 @@ def plot_runs(runs, x=None, ax=None, curve_labels=None, title='', x_label='',
         ax.set_xscale('log')
     if y_scale_log:
         ax.set_yscale('log')
-    if x_label != '':
+    if not all_labels_none:
         ax.legend(loc=legend_loc)
 
 

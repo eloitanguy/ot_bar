@@ -150,7 +150,7 @@ plt.savefig('B_losses.pdf')
 # %% fixed-point for (p, q) = (1.5, 1.5)
 p, q = 1.5, 1.5
 cost_list = [lambda x, y: p_norm_q_cost_matrix(x, y, p, q)] * K
-its = 4
+its = 2
 X_bar, log_dict = solve_OT_barycenter_fixed_point(
     X_init, Y_list, b_list, cost_list, lambda y: B(y, p, q), max_its=its, log=True, stop_threshold=0.)
 
@@ -177,12 +177,14 @@ def V(X, Y_list, b_list, p, q):
     return v
 
 
+plt.figure(figsize=(3, 3))
 V_list = [V(X, Y_list, b_list, p, q) for X in log_dict['X_list']]
 plt.plot(V_list, linewidth=5, alpha=.8, color=colours[1])
 plt.title('V evolution by iteration')
 plt.xlabel('Iteration')
 plt.xticks(range(its + 1))
 plt.ylabel('V')
+plt.tight_layout()
 plt.savefig('p_norm_q_barycentre_V.pdf')
 
 
@@ -223,6 +225,7 @@ for p_idx, p in enumerate(p_list):
         ax.set_title(f'p={p}, q={q}', fontsize=12)
         ax.axis('equal')
         ax.axis('off')
+plt.tight_layout()
 plt.savefig('p_norm_q_barycentres_grid.pdf')
 
 # %% plot energy evolution

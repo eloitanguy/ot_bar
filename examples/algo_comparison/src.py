@@ -128,16 +128,17 @@ V_results, dt_results = np.load(results_file, allow_pickle=True)
 curve_labels = [f'FP {fp_its} its' for fp_its in fp_its_list[:3]]
 V_ratios = V_results[:-1] / V_results[-1][None, :, :]
 dt_ratios = dt_results[:-1] / dt_results[-1][None, :, :]
-fig, axs = plt.subplots(1, 2, figsize=(6, 3))
+
+fig, axs = plt.subplots(2, 1, figsize=(3, 6))
 plot_runs(V_ratios, x=n_list, ax=axs[0],
           curve_labels=curve_labels, title='V / V MM', x_label='n', x_scale_log=False, y_scale_log=False, legend_loc='lower right',
           curve_colours=colours)
 plot_runs(dt_ratios, x=n_list, ax=axs[1],
           curve_labels=curve_labels, title='Time / Time MM', x_label='n', x_scale_log=False, y_scale_log=True, curve_colours=colours)
-plt.suptitle('Comparison of FP to MM for different measure sizes n',
-             y=1.05, fontsize=14)
-plt.subplots_adjust(wspace=0.4)
-plt.savefig(xp_name + '.pdf')
+plt.suptitle('FP vs MM different n',
+             y=.95, fontsize=14)
+plt.subplots_adjust(hspace=0.4)
+plt.savefig(xp_name + '.pdf', bbox_inches='tight')
 plt.show()
 
 # %% Loops for multiple d and n=30, K=3
@@ -235,15 +236,16 @@ V_results, dt_results = np.load(results_file, allow_pickle=True)
 curve_labels = [f'FP {fp_its} its' for fp_its in fp_its_list[:3]]
 V_ratios = V_results[:-1] / V_results[-1][None, :, :]
 dt_ratios = dt_results[:-1] / dt_results[-1][None, :, :]
-fig, axs = plt.subplots(1, 2, figsize=(6, 3))
+
+fig, axs = plt.subplots(2, 1, figsize=(3, 6))
 plot_runs(V_ratios, x=d_list, ax=axs[0],
           curve_labels=curve_labels, title='V / V MM', x_label='d', x_scale_log=False, y_scale_log=False, curve_colours=colours)
 plot_runs(dt_ratios, x=d_list, ax=axs[1],
           curve_labels=curve_labels, title='Time / Time MM', x_label='d', x_scale_log=False, y_scale_log=True, curve_colours=colours)
-plt.suptitle('Comparison of FP to MM for different dimensions d',
-             y=1.05, fontsize=14)
-plt.subplots_adjust(wspace=0.4)
-plt.savefig(xp_name + '.pdf')
+plt.suptitle('FP vs MM different d',
+             y=.95, fontsize=14)
+plt.subplots_adjust(hspace=0.4)
+plt.savefig(xp_name + '.pdf', bbox_inches='tight')
 plt.show()
 
 # %% Loops for multiple K and n=10, d=10
@@ -341,16 +343,48 @@ V_results, dt_results = np.load(results_file, allow_pickle=True)
 curve_labels = [f'FP {fp_its} its' for fp_its in fp_its_list[:3]]
 V_ratios = V_results[:-1] / V_results[-1][None, :, :]
 dt_ratios = dt_results[:-1] / dt_results[-1][None, :, :]
-fig, axs = plt.subplots(1, 2, figsize=(6, 3))
+
+fig, axs = plt.subplots(2, 1, figsize=(3, 6))
 plot_runs(V_ratios, x=K_list, ax=axs[0],
           curve_labels=curve_labels, title='V / V MM', x_label='K', x_scale_log=False, y_scale_log=False, curve_colours=colours)
 plot_runs(dt_ratios, x=K_list, ax=axs[1],
           curve_labels=curve_labels, title='Time / Time MM', x_label='K', x_scale_log=False, y_scale_log=True, curve_colours=colours,
           legend_loc='lower left')
-plt.suptitle('Comparison of FP to MM for different components K',
-             y=1.05, fontsize=14)
+plt.suptitle('FP vs MM different K',
+             y=.95, fontsize=14)
+plt.subplots_adjust(hspace=0.4)
+plt.savefig(xp_name + '.pdf', bbox_inches='tight')
+plt.show()
+
+# %% plot results
+V_results_n, dt_results_n = np.load('multiple_n_d10_K3_results.npy', allow_pickle=True)
+V_results_d, dt_results_d = np.load('multiple_d_n30_K3_results.npy', allow_pickle=True)
+V_results_K, dt_results_K = np.load('multiple_K_n10_d10_results.npy', allow_pickle=True)
+
+V_results_list = [V_results_n, V_results_d, V_results_K]
+V_ratios_list = [x[:-1] / x[-1][None, :, :] for x in V_results_list]
+
+dt_results_list = [dt_results_n, dt_results_d, dt_results_K]
+dt_ratios_list = [x[:-1] / x[-1][None, :, :] for x in dt_results_list]
+
+param_names = ['n', 'd', 'K']
+param_values = [n_list, d_list, K_list]
+
+fig, axs = plt.subplots(2, 3, figsize=(12, 6))
+for xp_idx in range(3):
+    labels = curve_labels if xp_idx == 2 else None
+    plot_runs(V_ratios_list[xp_idx], x=param_values[xp_idx], ax=axs[0, xp_idx],
+              curve_labels=labels, title='V / V MM',
+              x_label=param_names[xp_idx], x_scale_log=False,
+              y_scale_log=False, curve_colours=colours)
+    plot_runs(dt_ratios_list[xp_idx], x=param_values[xp_idx], ax=axs[1, xp_idx],
+              curve_labels=None, title='Time / Time MM',
+              x_label=param_names[xp_idx], x_scale_log=False, y_scale_log=True,
+              curve_colours=colours, legend_loc='lower left')
+
+plt.subplots_adjust(hspace=0.4)
 plt.subplots_adjust(wspace=0.4)
-plt.savefig(xp_name + '.pdf')
+plt.savefig('fp_vs_mm.pdf', bbox_inches='tight')
 plt.show()
 
 # %% For manual testing
