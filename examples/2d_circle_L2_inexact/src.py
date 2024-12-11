@@ -74,7 +74,7 @@ cost_list = [c1, c2, c3, c4]
 # optimiser parameters
 learning_rate = 30  # initial learning rate
 its = 2000  # Gradient Descent iterations
-stop_threshold = 1e-5  # stops if |X_{t+1} - X_{t}| / |X_t| < this
+stop_threshold = 1e-10  # stops if W2^2(X_{t+1}, X_{t}) / |X_t| < this
 gamma = 1  # learning rate at step t is initial learning rate * gamma^t
 np.random.seed(42)
 torch.manual_seed(42)
@@ -208,7 +208,8 @@ plt.xlim(-.3, 1.3)
 plt.ylim(-.3, 1.3)
 plt.axis('off')
 plt.legend()
-plt.savefig('gwb_circles_fixed_point.pdf')
+plt.tight_layout()
+plt.savefig('gwb_circles_fixed_point.pdf', format='pdf', bbox_inches='tight')
 
 # %% animate fixed-point barycentre steps
 num_frames = len(log_dict['X_list'])
@@ -251,7 +252,9 @@ for i, ax in enumerate(axes):
     ax.set_xlim(-.3, 1.3)
     ax.set_ylim(-.3, 1.3)
     ax.set_title(f"Step {i+1}", y=-0.2)
-plt.savefig(f'gwb_circles_fixed_point_{n_plots}_steps.pdf')
+
+plt.savefig(f'gwb_circles_fixed_point_{n_plots}_steps.pdf',
+            format='pdf', bbox_inches='tight')
 
 # %% Barycentre energy for fixed-point iterations
 V_list = []
@@ -262,9 +265,13 @@ for X in log_dict['X_list']:
     for k in range(K):
         V += (1 / K) * ot.emd2(a, b, ot.dist(P_list[k](X), Y_list[k]))
     V_list.append(V.item())
-plt.plot(V_list)
-plt.xlabel('iteration')
+
+plt.plot(V_list, linewidth=5, alpha=.8, color='#4A90E2')
+plt.title('V evolution by iteration')
+plt.xlabel('Iteration')
 plt.ylabel('V')
+plt.yscale('log')
+plt.tight_layout()
 plt.savefig('gwb_circles_fixed_point_V.pdf')
 
 # %%
