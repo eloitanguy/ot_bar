@@ -37,7 +37,7 @@ means_bar, covs_bar, a = solve_gmm_barycentre_multi_marginal(
     means_list, covs_list, b_list, weights)
 dt = time() - t0
 axis = [-4, 4, -2, 6]
-axs[0].set_title(f'Multi-Marginal Barycenter, time: {dt:.3f}s'.format(time() - t0))
+axs[0].set_title(f'Multi-Marginal Barycenter, computation time: {dt:.3f}s'.format(time() - t0))
 for k in range(K):
     draw_gmm(means_list[k], covs_list[k], b_list[k], color='C0', ax=axs[0])
 draw_gmm(means_bar, covs_bar, a, color='C1', ax=axs[0])
@@ -55,14 +55,15 @@ means_bar, covs_bar, log = solve_gmm_barycenter_fixed_point(
     means_list, covs_list, b_list, weights, max_its=fixed_its, log=True)
 dt = time() - t0
 
-axs[1].set_title(f'Fixed Point Barycenter, time: {dt:.3f}s')
+axs[1].set_title(f'Fixed Point Barycenter, computation time: {dt:.3f}s')
 for k in range(K):
     draw_gmm(means_list[k], covs_list[k], b_list[k], color='C0', ax=axs[1])
 draw_gmm(means_bar, covs_bar, ot.unif(n), color='C1', ax=axs[1])
 axs[1].axis(axis)
 axs[1].axis('off')
 
-plt.savefig('gmm_barycenters_comparison.pdf')
+plt.tight_layout()
+plt.savefig('gmm_barycenters_comparison.pdf', bbox_inches='tight')
 plt.show()
 
 # %% energy V per iteration
@@ -157,6 +158,7 @@ for i in range(n_grid):
         m, C, w = bars_dict[(i, j)]
         draw_gmm_contour(m, C, w, n=128, ax=-5, bx=132, ay=-5, by=132)
         plt.axis('off')
-plt.savefig('gmm_barycenter_interpolation.pdf')
+plt.tight_layout()
+plt.savefig('gmm_barycenter_interpolation.pdf', bbox_inches='tight')
 
 # %%

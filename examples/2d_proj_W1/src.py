@@ -23,6 +23,7 @@ spider = 1 - spider[::4, ::4, 0]
 Y1 = imageToGrid(spider, constant_threshold=False)
 Y1 = np.concatenate((Y1, Y1, Y1), axis=0)  # increase nb of points in Y1
 n = Y1.shape[0]  # number of points in all datasets
+Y1 = Y1 - np.array([.5, .5])[None, :]  # centre
 
 am = plt.imread('america.png')
 am = 1 - am[::4, ::4, 0]
@@ -31,6 +32,7 @@ Y2 = np.concatenate((Y2, Y2), axis=0)  # increase nb of points in Y1
 # subsampling of the data to match number of points in Y1
 indices = np.random.choice(Y2.shape[0], n, replace=False)
 Y2 = Y2[indices, :]
+Y2 = Y2 - np.array([.5, .5])[None, :]  # centre
 
 h = plt.imread('batman.png')
 h = 1 - h[::4, ::4, 0]
@@ -38,6 +40,7 @@ Y3 = imageToGrid(h, constant_threshold=False)
 # subsampling of the data to match number of points in Y1
 indices = np.random.choice(Y3.shape[0], n, replace=False)
 Y3 = Y3[indices, :]
+Y3 = Y3 - np.array([.5, .5])[None, :]  # centre
 
 Y_list = [Y1, Y2, Y3]
 weights = ot.unif(K)
@@ -87,6 +90,13 @@ Y1_3D = Y1 @ P1
 Y2_3D = Y2 @ P2
 Y3_3D = Y3 @ P3
 Y_3D_list = [Y1_3D, Y2_3D, Y3_3D]
+offsets = [
+    1 * np.array([0, 0, 1]),
+    1 * np.array([1, 0, 0]),
+    1 * np.array([0, 1, 0])
+]
+Y_3D_list = [Y - offset for Y, offset in zip(Y_3D_list, offsets)]
+
 
 fig = plt.figure(figsize=(7, 7))
 axis = fig.add_subplot(1, 1, 1, projection="3d")
@@ -107,22 +117,26 @@ plt.savefig("bar_3D.pdf", format="pdf", bbox_inches="tight")
 plt.show()
 
 # %%
-fig, axs = plt.subplots(1, 3, figsize=(15, 5))
+fig, axs = plt.subplots(2, 3, figsize=(15, 10))
 
 for k in range(K):
     X_proj = X @ P_list[k].T
-    axs[k].scatter(Y_list[k][:, 0], Y_list[k][:, 1], alpha=.5,
-                   c=c_list[k], marker='o')
-    axs[k].scatter(X_proj[:, 0], X_proj[:, 1], alpha=.5,
-                   c=c_bar, marker='o')
-    axs[k].axis('off')
-plt.tight_layout()
+    axs[0, k].scatter(Y_list[k][:, 0], Y_list[k][:, 1], alpha=.5,
+                      c=c_list[k], marker='o')
+    axs[0, k].axis('equal')
+    axs[0, k].axis('off')
+    axs[0, k].set_title(f"Measure {k + 1}")
+    axs[1, k].scatter(X_proj[:, 0], X_proj[:, 1], alpha=.5,
+                      c=c_bar, marker='o')
+    axs[1, k].axis('equal')
+    axs[1, k].axis('off')
+    axs[1, k].set_title("Projected Barycentre", y=-.1)
 plt.savefig("bar_proj.pdf", format="pdf", bbox_inches="tight")
 plt.show()
 
 # %% animation
 # Send the input measures into 3D space for visualization
-Y_visu = [Yi @ Pi for (Yi, Pi) in zip(Y_list, P_list)]
+Y_visu = Y_3D_list
 
 fig = plt.figure(figsize=(7, 7))
 ax = fig.add_subplot(1, 1, 1, projection="3d")
