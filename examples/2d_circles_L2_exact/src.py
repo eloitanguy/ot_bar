@@ -72,7 +72,7 @@ cost_list = [c1, c2, c3, c4]
 # optimiser parameters
 learning_rate = 30  # initial learning rate
 its = 2000  # Gradient Descent iterations
-stop_threshold = 1e-5  # stops if |X_{t+1} - X_{t}| / |X_t| < this
+stop_threshold = 1e-10  # stops if W2^2(X_{t+1}, X_{t}) / |X_t| < this
 gamma = 1  # learning rate at step t is initial learning rate * gamma^t
 np.random.seed(42)
 torch.manual_seed(42)
@@ -227,7 +227,7 @@ ani = animation.FuncAnimation(fig, update, frames=num_frames, blit=True)
 ani.save("fixed_point_barycentre_animation.gif", writer="pillow", fps=2)
 
 # %% First 5 steps on a subplot
-n_plots = 5
+n_plots = 3
 fig, axes = plt.subplots(1, n_plots, figsize=(3 * n_plots, 3))
 fig.suptitle(f"First {n_plots} Steps Fixed-point GWB solver", fontsize=16)
 
@@ -305,7 +305,7 @@ for i in range(n_plots):
         X_init, Y_list, b_list, cost_list, B, max_its=fixed_point_its, pbar=True, log=True)
     X_bar_different_inits.append(X_bar)
 fig, axes = plt.subplots(1, n_plots, figsize=(3 * n_plots, 3))
-fig.suptitle(f"First {n_plots} Steps Fixed-point GWB solver", fontsize=16)
+fig.suptitle(f"{n_plots} initial seeds for Fixed-point GWB solver", fontsize=16)
 
 for i, ax in enumerate(axes):
     for Y, label in zip(Y_list, labels):
