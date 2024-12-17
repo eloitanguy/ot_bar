@@ -242,4 +242,62 @@ for p_idx, p in enumerate(p_list):
         ax.set_title(f'p={p}, q={q}', fontsize=12)
 plt.savefig('p_norm_q_barycentres_V.pdf')
 
-# %%
+# %% with extra outliers
+np.random.seed(42)
+torch.manual_seed(42)
+n_outliers = 30
+outliers_scale = 10
+Y_list_outliers = []
+for Y in Y_list:
+    noise = torch.randn(n_outliers, d, device=device) * outliers_scale
+    noise += torch.mean(Y, axis=0)[None, :]
+    Y_outliers = torch.cat([Y, noise], axis=0)
+    Y_list_outliers.append(Y_outliers)
+b_list_outliers = TT([ot.unif(Y.shape[0]) for Y in Y_list_outliers])
+
+its_outliers = 10
+p, q = 1.5, 1.5
+cost_list = [lambda x, y: p_norm_q_cost_matrix(x, y, p, q)] * K
+its = 2
+X_bar, log_dict = solve_OT_barycenter_fixed_point(
+    X_init, Y_list_outliers, b_list_outliers, cost_list, lambda y: B(y, p, q),
+    max_its=its_outliers, log=True, stop_threshold=0.)
+
+plt.figure(1, (6, 4.5))
+for Y in Y_list_outliers:
+    plt.scatter(*TN(Y.T), alpha=0.5)
+plt.scatter(*TN(X_bar.T), alpha=0.5)
+plt.title("Barycentre for the cost $|x-y|_{3/2}^{3/2}$", fontsize=16)
+plt.axis('equal')
+plt.axis('off')
+plt.tight_layout()
+plt.savefig('p_norm_q_barycentre_outliers.pdf')
+
+# %% barycentre grid for outliers
+np.random.seed(0)
+torch.manual_seed(0)
+X_bar_dict_outliers = {}
+X_bar_list_dict_outliers = {}
+for p in tqdm(p_list):
+    for q in q_list:
+        cost_list = [lambda x, y: p_norm_q_cost_matrix(x, y, p, q)] * K
+        X_bar, log_dict = solve_OT_barycenter_fixed_point(
+            X_init, Y_list_outliers, b_list_outliers, cost_list,
+            lambda y: B(y, p, q), max_its=its_outliers, log=True,
+            stop_threshold=stop_threshold)
+        X_bar_dict_outliers[(p, q)] = X_bar
+        X_bar_list_dict_outliers[(p, q)] = log_dict['X_list']
+
+# %% plot barycentres for outliers
+fig = plt.figure(figsize=(len(p_list) * 3, len(q_list) * 3))
+for p_idx, p in enumerate(p_list):
+    for q_idx, q in enumerate(q_list):
+        i = p_idx * len(q_list) + q_idx
+        ax = fig.add_subplot(len(p_list), len(q_list), i + 1)
+        X_bar = X_bar_dict_outliers[(p, q)]
+        ax.scatter(*TN(X_bar.T), alpha=0.5)
+        ax.set_title(f'p={p}, q={q}', fontsize=12)
+        ax.axis('equal')
+        ax.axis('off')
+plt.tight_layout()
+plt.savefig('p_norm_q_barycentres_grid_outliers.pdf')

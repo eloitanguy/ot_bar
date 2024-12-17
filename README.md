@@ -1,7 +1,11 @@
 # Optimal Transport Barycenters
 
-this repository provides code for the fixed-point approach to OT barycenters
+This repository provides code for the fixed-point approach to OT barycenters
 with arbitrary cost functions.
+
+The main function to use in practice is
+`ot_bar.solvers.solve_OT_barycenter_fixed_point` which solves the OT barycentre
+problem using the (barycentric) fixed-point method.
 
 To install required packages:
 
