@@ -81,7 +81,7 @@ plt.xlabel('iteration')
 plt.ylabel('V')
 plt.savefig('gmm_fixed_point_V.pdf')
 
-# %%
+# %% GMM barycentre grid: data
 im1 = 1 - plt.imread('../data/redcross.png')[:, :, 2]
 im2 = 1 - plt.imread('../data/duck.png')[:, :, 2]
 im3 = 1 - plt.imread('../data/fire.png')[:, :, 2]
@@ -107,6 +107,18 @@ for im in images:  # fit GMM with EM
     covs_list.append(gmm.covariances_)
     b_list.append(gmm.weights_)
 
+K = len(images)
+plt.figure(figsize=(12, 3))
+
+for k in range(K):
+    axes = plt.subplot(1, K, k + 1)
+    m, C, w = means_list[k], covs_list[k], b_list[k]
+    draw_gmm_contour(m, C, w, n=128, ax=-5, bx=132, ay=-5, by=132)
+    plt.axis('off')
+plt.tight_layout()
+plt.savefig('gmms.pdf', bbox_inches='tight')
+
+# %% GMM barycentre grid: computation
 n_grid = 7
 # four corners that will be interpolated by bilinear interpolation
 v1 = np.array((1, 0, 0, 0))
@@ -120,22 +132,22 @@ Kn = k**4
 
 print('start barycenter computation')
 t0 = time()
-for i in range(n_grid):
+for k in range(n_grid):
     for j in range(n_grid):
-        if i == 0 and j == 0:
-            bars_dict[(i, j)] = means_list[0], covs_list[0], b_list[0]
+        if k == 0 and j == 0:
+            bars_dict[(k, j)] = means_list[0], covs_list[0], b_list[0]
 
-        elif i == 0 and j == n_grid - 1:
-            bars_dict[(i, j)] = means_list[2], covs_list[2], b_list[2]
+        elif k == 0 and j == n_grid - 1:
+            bars_dict[(k, j)] = means_list[2], covs_list[2], b_list[2]
 
-        elif i == n_grid - 1 and j == 0:
-            bars_dict[(i, j)] = means_list[1], covs_list[1], b_list[1]
+        elif k == n_grid - 1 and j == 0:
+            bars_dict[(k, j)] = means_list[1], covs_list[1], b_list[1]
 
-        elif i == n_grid - 1 and j == (n_grid - 1):
-            bars_dict[(i, j)] = means_list[3], covs_list[3], b_list[3]
+        elif k == n_grid - 1 and j == (n_grid - 1):
+            bars_dict[(k, j)] = means_list[3], covs_list[3], b_list[3]
 
         else:
-            tx = float(i) / (n_grid - 1)
+            tx = float(k) / (n_grid - 1)
             ty = float(j) / (n_grid - 1)
 
             # weights are constructed by bilinear interpolation
@@ -146,16 +158,16 @@ for i in range(n_grid):
             m, C = solve_gmm_barycenter_fixed_point(
                 init_means, init_covs,
                 means_list, covs_list, b_list, weights, max_its=fixed_its)
-            bars_dict[(i, j)] = m, C, a
+            bars_dict[(k, j)] = m, C, a
 
 print(f'end barycenter computation in: {time() - t0:.5f}s')
 
 plt.figure(figsize=(20, 20))
 
-for i in range(n_grid):
+for k in range(n_grid):
     for j in range(n_grid):
-        axes = plt.subplot(n_grid, n_grid, i * n_grid + j + 1)
-        m, C, w = bars_dict[(i, j)]
+        axes = plt.subplot(n_grid, n_grid, k * n_grid + j + 1)
+        m, C, w = bars_dict[(k, j)]
         draw_gmm_contour(m, C, w, n=128, ax=-5, bx=132, ay=-5, by=132)
         plt.axis('off')
 plt.tight_layout()

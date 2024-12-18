@@ -301,3 +301,53 @@ for p_idx, p in enumerate(p_list):
         ax.axis('off')
 plt.tight_layout()
 plt.savefig('p_norm_q_barycentres_grid_outliers.pdf')
+
+# %% outlier experiments with 2D gaussians
+np.random.seed(42)
+torch.manual_seed(42)
+
+K = 2
+d = 2
+n = 100  # barycentre size, measures will be 2n + n_outliers
+n_outliers = 10
+
+Y_list = []
+offsets = [torch.tensor([0, 0], device=device, dtype=torch.double),
+           torch.tensor([5, 0], device=device, dtype=torch.double)]
+for k in range(K):
+    Y = torch.rand(2 * n, d, device=device, dtype=torch.double) - .5
+    outliers = \
+        torch.randn(n_outliers, d, device=device, dtype=torch.double) * .75
+    Y = torch.cat([Y, outliers], axis=0)
+    Y_list.append(Y + offsets[k][None, :])
+
+b_list = TT([ot.unif(Y.shape[0]) for Y in Y_list])
+X_init = torch.rand(n, d, device=device, dtype=torch.double)
+
+fixed_point_its = 5
+stop_threshold = 1e-10
+q_list = [1.1, 2]
+p = 2
+X_bar_dict = {}
+X_bar_list_dict = {}
+for q in q_list:
+    cost_list = [lambda x, y: p_norm_q_cost_matrix(x, y, p, q)] * K
+    X_bar, log_dict = solve_OT_barycenter_fixed_point(
+        X_init, Y_list, b_list, cost_list, lambda y: B(y, p, q), max_its=fixed_point_its, log=True, stop_threshold=stop_threshold)
+    X_bar_dict[q] = X_bar
+    X_bar_list_dict[q] = log_dict['X_list']
+
+fig = plt.figure(figsize=(6, len(q_list) * 3))
+for q_idx, q in enumerate(q_list):
+    ax = fig.add_subplot(len(q_list), 1, q_idx + 1)
+    X_bar = X_bar_dict[q]
+    for Y in Y_list:
+        ax.scatter(*TN(Y.T), alpha=0.5)
+    ax.scatter(*TN(X_bar.T), alpha=0.5)
+    ax.set_title(f'p={p}, q={q}', fontsize=12)
+    ax.axis('equal')
+    ax.axis('off')
+plt.tight_layout()
+plt.savefig('2_norm_q_outliers.pdf')
+
+ # %%
