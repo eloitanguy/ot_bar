@@ -37,7 +37,8 @@ means_bar, covs_bar, a = solve_gmm_barycentre_multi_marginal(
     means_list, covs_list, b_list, weights)
 dt = time() - t0
 axis = [-4, 4, -2, 6]
-axs[0].set_title(f'Multi-Marginal Barycenter, computation time: {dt:.3f}s'.format(time() - t0))
+axs[0].set_title(f'Multi-Marginal Barycenter, time: {dt:.3f}s',
+                 fontsize=16)
 for k in range(K):
     draw_gmm(means_list[k], covs_list[k], b_list[k], color='C0', ax=axs[0])
 draw_gmm(means_bar, covs_bar, a, color='C1', ax=axs[0])
@@ -55,7 +56,8 @@ means_bar, covs_bar, log = solve_gmm_barycenter_fixed_point(
     means_list, covs_list, b_list, weights, max_its=fixed_its, log=True)
 dt = time() - t0
 
-axs[1].set_title(f'Fixed Point Barycenter, computation time: {dt:.3f}s')
+axs[1].set_title(f'Fixed Point Barycenter, time: {dt:.3f}s',
+                 fontsize=16)
 for k in range(K):
     draw_gmm(means_list[k], covs_list[k], b_list[k], color='C0', ax=axs[1])
 draw_gmm(means_bar, covs_bar, ot.unif(n), color='C1', ax=axs[1])

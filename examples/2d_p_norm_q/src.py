@@ -349,5 +349,3 @@ for q_idx, q in enumerate(q_list):
     ax.axis('off')
 plt.tight_layout()
 plt.savefig('2_norm_q_outliers.pdf')
-
- # %%
