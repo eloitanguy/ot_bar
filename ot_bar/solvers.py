@@ -155,7 +155,7 @@ def solve_OT_barycenter_fixed_point(X, Y_list, b_list, cost_list, B,
     b_list : list of array-like
         List of K arrays, each of shape (m_k) representing weights.
     cost_list : list of callable
-        List of K cost functions R^d x R^d_k -> R_+.
+        List of K cost functions R^(n, d) x R^(m_k, d_k) -> R_+^(n, m_k).
     B : callable
         Function from R^d_1 x ... x R^d_K to R^d accepting a list of K arrays of shape (n, d_K), computing the "ground barycentre".
     max_its : int, optional
