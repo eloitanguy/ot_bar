@@ -159,7 +159,7 @@ def solve_OT_barycenter_fixed_point(X, Y_list, b_list, cost_list, B,
     B : callable
         Function from R^d_1 x ... x R^d_K to R^d accepting a list of K arrays of shape (n, d_K), computing the "ground barycentre".
     max_its : int, optional
-        Maximum number of iterations (default is 300).
+        Maximum number of iterations (default is 5).
     stop_threshold : float, optional
         If the iterations move less than this (relatively), terminate.
     pbar : bool, optional
@@ -522,8 +522,8 @@ def solve_gmm_barycenter_fixed_point(means, covs,
 
             # compute Bures barycentre of the selected components
             elif barycentric_proj_method == 'bures':
-                w = (1 / a[i]) * pi_list[k][i, :]
                 for k in range(K):
+                    w = (1 / a[i]) * pi_list[k][i, :]
                     m, C = bures_wasserstein_barycenter(
                         means_list[k], covs_list[k], w)
                     means_selection_i.append(m)
