@@ -1,7 +1,5 @@
 # %% load and generate data. Adapted from
 # https://pythonot.github.io/auto_examples/barycenters/plot_free_support_barycenter.html
-import sys
-sys.path.insert(1, '../../')
 
 import numpy as np
 import matplotlib.pylab as pl
@@ -33,13 +31,13 @@ sz = I2.shape[0]
 XX, YY = np.meshgrid(np.arange(sz), np.arange(sz))
 
 Y1 = np.stack((XX[I1 == 0], -YY[I1 == 0]), 1) * 1.0
-Y2 = np.stack((XX[I2 == 0], -YY[I2 == 0] ), 1) * 1.0
-Y3 = np.stack((XX[I3 == 0], -YY[I3 == 0] ), 1) * 1.0
+Y2 = np.stack((XX[I2 == 0], -YY[I2 == 0]), 1) * 1.0
+Y3 = np.stack((XX[I3 == 0], -YY[I3 == 0]), 1) * 1.0
 Y1 = Y1 + np.random.randn(*Y1.shape) * .3
 Y2 = Y2 + np.random.randn(*Y2.shape) * .3
 Y3 = Y3 + np.random.randn(*Y3.shape) * .3
-Y2_visu = np.copy(Y2)+ np.array([80, 0])
-Y3_visu = np.copy(Y3)+ np.array([40, 60])
+Y2_visu = np.copy(Y2) + np.array([80, 0])
+Y3_visu = np.copy(Y3) + np.array([40, 60])
 
 Y_list = TT([Y1, Y2, Y3])
 Y_list_visu = TT([Y1, Y2_visu, Y3_visu])
@@ -56,8 +54,8 @@ plt.axis('off')
 plt.tight_layout()
 
 # %% Define costs and visualise landscapes
-p_list = [1,1.5,2,3]  # p-norms
-q_list = [1,1.5,2,3]  # exponents to the p-norms
+p_list = [1, 1.5, 2, 3]  # p-norms
+q_list = [1, 1.5, 2, 3]  # exponents to the p-norms
 
 
 def p_norm_q_cost_matrix(u, v, p, q):
@@ -77,7 +75,7 @@ def C(x, y, p, q):
     return out
 
 
-#%%%%
+# %%
 n_vis = 100
 u = torch.linspace(40, 80, n_vis, device=device)
 v = torch.linspace(0, 30, n_vis, device=device)
@@ -137,7 +135,7 @@ def B(y, p, q, its=250, lr=1, log=False, stop_threshold=1e-20):
         return x
 
 
-#%%%
+# %%
 np.random.seed(42)
 torch.manual_seed(42)
 fig = plt.figure(figsize=(len(p_list) * 3, len(q_list) * 3))
@@ -204,7 +202,7 @@ plt.savefig('p_norm_q_barycentre_V.pdf')
 plt.figure(1, (6, 4.5))
 for Y in Y_list_visu:
     plt.scatter(*TN(Y.T), alpha=0.5)
-plt.scatter(*TN(X_bar.T)+np.array([[40], [20]]), alpha=0.5)
+plt.scatter(*TN(X_bar.T) + np.array([[40], [20]]), alpha=0.5)
 plt.title("Barycentre for the cost $|x-y|_{3/2}^{3/2}$", fontsize=16)
 plt.axis('equal')
 plt.axis('off')
