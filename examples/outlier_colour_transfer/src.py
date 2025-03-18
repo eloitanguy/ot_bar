@@ -120,31 +120,69 @@ IC1m = np.reshape(IC1m_flat, IC1.shape)
 plt.imsave('C1_matched_bar.jpg', IC1m)
 plt.imshow(IC1m)
 
+# %% compute W2 barycenter
+p, q = 2, 2
+cost_list = [lambda x, y: p_norm_q_cost_matrix(x, y, p, q)] * K
+its = 3
+X_bar2, log_dict2 = solve_OT_barycenter_fixed_point(
+    X_init, Y_list, b_list, cost_list, lambda y: B(y, p, q),
+    max_its=its, log=True, stop_threshold=0.)
+
+# %% apply W2 barycenter colour distribution to C1d
+X_bar2_np = TN(X_bar2)
+X_bar2_np = np.clip(X_bar2_np, 0., 1.)
+pi = ot.emd(ot.unif(nd), ot.unif(nd),
+            ot.dist(IC1d.reshape(nd, 3), X_bar2_np))
+IC1d_matched_bar2 = np.reshape(
+    nd * pi @ X_bar2_np,
+    IA1d.shape)
+plt.imsave('C1d_matched_bar2.jpg', IC1d_matched_bar2)
+plt.imshow(IC1d_matched_bar2)
+
+# %% apply the matching to the true-scale image via interpolation
+# apply the linear transformation of the closest RBG vector in the downscaled
+# version
+IC1d_flat = IC1d.reshape(nd, 3)
+IC1dm2_flat = IC1d_matched_bar2.reshape(nd, 3)
+IC1_flat = IC1.reshape(n, 3)
+# closest pixel in downscaled image
+pixel_idx = np.argmin(ot.dist(IC1_flat, IC1d_flat), axis=1)
+translations = IC1dm2_flat - IC1d_flat
+IC1m2_flat = IC1_flat + translations[pixel_idx]
+IC1m2_flat = np.clip(IC1m2_flat, 0., 1.)
+IC1m2 = np.reshape(IC1m2_flat, IC1.shape)
+plt.imsave('C1_matched_bar2.jpg', IC1m2)
+plt.imshow(IC1m2)
+
 # %% show images
-n_im = 5
+n_im = 6
 size = 3
 fig, axes = plt.subplots(1, n_im, figsize=(n_im * size, size))
 axes[0].imshow(IA1)
 axes[0].axis('off')
-axes[0].set_title('Landscape A1')
+axes[0].set_title('Source 1')
 
 axes[1].imshow(IB1o)
 axes[1].axis('off')
-axes[1].set_title('Landscape B1 (outlier)')
+axes[1].set_title('Source 2 (outlier)')
 
 axes[2].imshow(IB2)
 axes[2].axis('off')
-axes[2].set_title('Landscape B2')
+axes[2].set_title('Source 3')
 
 axes[3].imshow(IC1)
 axes[3].axis('off')
-axes[3].set_title('Landscape C1')
+axes[3].set_title('Input')
 
 axes[4].imshow(IC1m)
 axes[4].axis('off')
-axes[4].set_title('Landscape C1 matched to barycenter')
+axes[4].set_title('Input matched to W1 bar')
+
+axes[5].imshow(IC1m2)
+axes[5].axis('off')
+axes[5].set_title('Input matched to W2 bar')
 plt.tight_layout()
-plt.savefig('bar_matching.jpg', format='jpg')
+plt.savefig('bar_W1_W2_matching.jpg', format='jpg')
 plt.show()
 
 
@@ -158,37 +196,45 @@ def scatter_rgb(img_path, ax):
 
 size = 3
 n_rows = 1
-n_cols = 6
+n_cols = 8
 fig, axes = plt.subplots(n_rows, n_cols,
                          figsize=(n_cols * size, n_rows * size),
                          subplot_kw={'projection': '3d'})
 
 scatter_rgb('A1d.jpg', axes[0])
 axes[0].axis('off')
-axes[0].set_title('Landscape A1')
+axes[0].set_title('Source 1')
 
 scatter_rgb('B1od.jpg', axes[1])
 axes[1].axis('off')
-axes[1].set_title('Landscape B1 (outlier)')
+axes[1].set_title('Source 2 (outlier)')
 
 scatter_rgb('B2d.jpg', axes[2])
 axes[2].axis('off')
-axes[2].set_title('Landscape B2')
+axes[2].set_title('Source 3')
 
 axes[3].scatter(*X_bar_np.T, c=X_bar_np, marker="o", alpha=0.3)
 axes[3].axis('off')
-axes[3].set_title('Barycenter')
+axes[3].set_title('W1 Barycenter')
 
-scatter_rgb('C1d.jpg', axes[4])
+axes[4].scatter(*X_bar2_np.T, c=X_bar2_np, marker="o", alpha=0.3)
 axes[4].axis('off')
-axes[4].set_title('Landscape C1')
+axes[4].set_title('W2 Barycenter')
 
-scatter_rgb('C1d_matched_bar.jpg', axes[5])
+scatter_rgb('C1d.jpg', axes[5])
 axes[5].axis('off')
-axes[5].set_title('Landscape C1 matched to Barycenter')
+axes[5].set_title('Input')
+
+scatter_rgb('C1d_matched_bar.jpg', axes[6])
+axes[6].axis('off')
+axes[6].set_title('Input matched to W1 bar')
+
+scatter_rgb('C1d_matched_bar2.jpg', axes[7])
+axes[7].axis('off')
+axes[7].set_title('Input matched to W2 bar')
 
 plt.tight_layout()
-plt.savefig('bar_matching_rgb.jpg', format='jpg', dpi=300)
+plt.savefig('bar_W1_W2_matching_rgb.jpg', format='jpg', dpi=300)
 plt.show()
 
 # %%
