@@ -156,31 +156,34 @@ plt.imshow(IC1m2)
 
 # %% show images
 n_im = 6
+n_rows = 2
 size = 3
-fig, axes = plt.subplots(1, n_im, figsize=(n_im * size, size))
-axes[0].imshow(IA1)
-axes[0].axis('off')
-axes[0].set_title('Source 1')
+fig, axes = plt.subplots(n_rows, n_im // n_rows, 
+                         figsize=((n_im // n_rows) * size, size * n_rows))
 
-axes[1].imshow(IB1o)
-axes[1].axis('off')
-axes[1].set_title('Source 2 (outlier)')
+axes[0, 0].imshow(IA1)
+axes[0, 0].axis('off')
+axes[0, 0].set_title('Source 1')
 
-axes[2].imshow(IB2)
-axes[2].axis('off')
-axes[2].set_title('Source 3')
+axes[0, 1].imshow(IB1o)
+axes[0, 1].axis('off')
+axes[0, 1].set_title('Source 2 (outlier)')
 
-axes[3].imshow(IC1)
-axes[3].axis('off')
-axes[3].set_title('Input')
+axes[0, 2].imshow(IB2)
+axes[0, 2].axis('off')
+axes[0, 2].set_title('Source 3')
 
-axes[4].imshow(IC1m)
-axes[4].axis('off')
-axes[4].set_title('Input matched to W1 bar')
+axes[1, 0].imshow(IC1)
+axes[1, 0].axis('off')
+axes[1, 0].set_title('Input')
 
-axes[5].imshow(IC1m2)
-axes[5].axis('off')
-axes[5].set_title('Input matched to W2 bar')
+axes[1, 1].imshow(IC1m)
+axes[1, 1].axis('off')
+axes[1, 1].set_title('Input matched to W1 bar')
+
+axes[1, 2].imshow(IC1m2)
+axes[1, 2].axis('off')
+axes[1, 2].set_title('Input matched to W2 bar')
 plt.tight_layout()
 plt.savefig('bar_W1_W2_matching.jpg', format='jpg')
 plt.show()
@@ -195,43 +198,38 @@ def scatter_rgb(img_path, ax):
 
 
 size = 3
-n_rows = 1
-n_cols = 8
+n_rows = 2
+n_cols = 4
 fig, axes = plt.subplots(n_rows, n_cols,
                          figsize=(n_cols * size, n_rows * size),
                          subplot_kw={'projection': '3d'})
 
-scatter_rgb('A1d.jpg', axes[0])
-axes[0].axis('off')
-axes[0].set_title('Source 1')
+scatter_rgb('A1d.jpg', axes[0, 0])
+axes[0, 0].set_title('Source 1')
 
-scatter_rgb('B1od.jpg', axes[1])
-axes[1].axis('off')
-axes[1].set_title('Source 2 (outlier)')
+scatter_rgb('B1od.jpg', axes[0, 1])
+axes[0, 1].set_title('Source 2 (outlier)')
 
-scatter_rgb('B2d.jpg', axes[2])
-axes[2].axis('off')
-axes[2].set_title('Source 3')
+scatter_rgb('B2d.jpg', axes[0, 2])
+axes[0, 2].set_title('Source 3')
 
-axes[3].scatter(*X_bar_np.T, c=X_bar_np, marker="o", alpha=0.3)
-axes[3].axis('off')
-axes[3].set_title('W1 Barycenter')
+axes[0, 3].scatter(*X_bar_np.T, c=X_bar_np, marker="o", alpha=0.3)
+axes[0, 3].set_title('W1 Barycenter')
 
-axes[4].scatter(*X_bar2_np.T, c=X_bar2_np, marker="o", alpha=0.3)
-axes[4].axis('off')
-axes[4].set_title('W2 Barycenter')
+axes[1, 0].scatter(*X_bar2_np.T, c=X_bar2_np, marker="o", alpha=0.3)
+axes[1, 0].set_title('W2 Barycenter')
 
-scatter_rgb('C1d.jpg', axes[5])
-axes[5].axis('off')
-axes[5].set_title('Input')
+scatter_rgb('C1d.jpg', axes[1, 1])
+axes[1, 1].set_title('Input')
 
-scatter_rgb('C1d_matched_bar.jpg', axes[6])
-axes[6].axis('off')
-axes[6].set_title('Input matched to W1 bar')
+scatter_rgb('C1d_matched_bar.jpg', axes[1, 2])
+axes[1, 2].set_title('Input matched to W1 bar')
 
-scatter_rgb('C1d_matched_bar2.jpg', axes[7])
-axes[7].axis('off')
-axes[7].set_title('Input matched to W2 bar')
+scatter_rgb('C1d_matched_bar2.jpg', axes[1, 3])
+axes[1, 3].set_title('Input matched to W2 bar')
+
+for ax in axes.flat:
+    ax.axis('off')
 
 plt.tight_layout()
 plt.savefig('bar_W1_W2_matching_rgb.jpg', format='jpg', dpi=300)
