@@ -164,6 +164,7 @@ ani = animation.FuncAnimation(fig, _update_plot, init_func=_init, frames=136, in
 ani.save("barycenter_rotation.gif", writer="pillow", fps=10)
 
 # %%  Point-cloud distances between steps
+plt.clf()
 one_step_diffs = []
 a = ot.unif(n)
 for i in range(1, len(log_dict["X_list"])):

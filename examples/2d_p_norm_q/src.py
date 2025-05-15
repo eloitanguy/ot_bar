@@ -252,4 +252,4 @@ for p_idx, p in enumerate(p_list):
         ax.set_title(f'p={p}, q={q}', fontsize=12)
 plt.savefig('p_norm_q_barycentres_V.pdf')
 
-
+# %%
