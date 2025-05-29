@@ -2,7 +2,9 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Ellipse
-from ot.gmm import gmm_pdf
+from ot.gmm import gmm_pdf  # type: ignore
+from ot.backend import get_backend  # type: ignore
+import ot  # type: ignore
 
 
 def TN(x):
@@ -174,3 +176,79 @@ def draw_gmm_contour(means, covs, w,
     Z = Z.reshape(X.shape)
     plt.axis('equal')
     return axis.contour(X, Y, Z, 8, cmap=cmap)
+
+
+def to_int_array(x):
+    """
+    Converts a float array to an integer type array.
+    """
+    if isinstance(x, np.ndarray):
+        return x.astype(int)
+
+    if torch.is_tensor(x):
+        return x.to(torch.int)
+
+    raise TypeError('Expected a numpy array or a torch tensor')
+
+
+def clean_discrete_measure(X, a, tol=1e-10):
+    r"""
+    Simplifies a discrete measure by consolidating duplicate points and summing
+    their weights.
+
+    Parameters
+    ----------
+    X : ndarray
+        Array of shape (n, d) representing the support points of the discrete
+        measure.
+    a : ndarray
+        Array of shape (n,) representing the weights associated with the support
+        points.
+    tol : float, optional
+        Tolerance for determining uniqueness of points in `X`. Points closer
+        than `tol` are considered identical. Default is 1e-10.
+
+    Returns
+    -------
+    Y : ndarray
+        Array of shape (m, d) representing the unique support points of the
+        discrete measure.
+    b : ndarray
+        Array of shape (m,) representing the summed weights for each unique
+        point in `Y`.
+
+    Given a discrete measure with support X (n, d) and weights a (n, ), returns
+    a measure Y (m, d) and weights b (m, ) such that - Y is the unique set of
+    points in X - b is the sum of weights in a for each point in Y
+    """
+    nx = get_backend(X, a)
+    D = ot.dist(X, X)
+    # each D[I[k], J[k]] < tol so X[I[k]] = X[J[k]]
+    I, J = nx.where(D < tol)
+    # keep only the cases I[k] <= J[k] to avoid pairs (i, j) (j, i) with i != j
+    mask = I <= J
+    I, J = I[mask], J[mask]
+    X_idx_to_Y_idx = {}  # X[i] = Y[X_idx_to_Y_idx[i]]
+    # indices of unique points in X, at the end, Y := X[unique_X_idx]
+    unique_X_idx = []
+
+    b = []
+    for i, j in zip(I, J):
+        if i not in X_idx_to_Y_idx:  # i is a new point
+            unique_X_idx.append(i)
+            X_idx_to_Y_idx[i] = len(unique_X_idx) - 1
+            b.append(a[i])
+            # j is a duplicate of i
+            if j not in X_idx_to_Y_idx:
+                X_idx_to_Y_idx[j] = X_idx_to_Y_idx[i]
+                b[X_idx_to_Y_idx[i]] += a[j]
+
+        else:  # i is not new, check if j is known
+            if j not in X_idx_to_Y_idx:
+                b[X_idx_to_Y_idx[i]] += a[j]
+                X_idx_to_Y_idx[j] = X_idx_to_Y_idx[i]
+
+    # create the unique points array Y
+    Y = X[tuple(unique_X_idx), :]
+    b = nx.from_numpy(np.array(b), type_as=X)
+    return Y, b

@@ -7,8 +7,9 @@ from ot.backend import get_backend  # type: ignore
 import numpy as np
 import cvxpy as cvx
 from itertools import product
-from ot.gmm import gmm_ot_plan
-from ot.gaussian import bures_wasserstein_barycenter
+from ot.gmm import gmm_ot_plan  # type: ignore
+from ot.gaussian import bures_wasserstein_barycenter  # type: ignore
+from .utils import to_int_array, clean_discrete_measure
 
 
 class StoppingCriterionReached(Exception):
@@ -140,11 +141,24 @@ def solve_OT_barycenter_GD(Y_list, b_list, weights, cost_list, n, d,
             return X, a
 
 
-def solve_OT_barycenter_fixed_point(X, Y_list, b_list, cost_list, B,
-                                    max_its=5, stop_threshold=1e-5, pbar=False, log=False):
+def solve_OT_barycenter_fixed_point(X, Y_list, b_list, cost_list, B, a=None,
+                                    max_its=5, method='L2_barycentric_proj',
+                                    stop_threshold=1e-5, pbar=False, log=False,
+                                    clean_measure=False):
     """
     Solves the OT barycenter problem using the fixed point algorithm, iterating
     the function B on plans between the current barycentre and the measures.
+
+    The method 'L2_barycentric_proj' uses Euclidean barycentric projections,
+    imposing the support size to remain the same as the initial X, and fixing
+    weights to remain equal to `a`.
+
+    The method 'true_fixed_point' uses the North West Corner multi-marginal
+    gluing method, which allows the support size N to increase at each
+    iteration, and the weights to change. The final support size is
+    upper-bounded by n + T(sum_k n_k - K), where n is the size of the initial
+    barycentre X, n_k is the size of the k-th marginal, and T is the number of
+    iterations.
 
     Parameters
     ----------
@@ -157,46 +171,86 @@ def solve_OT_barycenter_fixed_point(X, Y_list, b_list, cost_list, B,
     cost_list : list of callable
         List of K cost functions R^(n, d) x R^(m_k, d_k) -> R_+^(n, m_k).
     B : callable
-        Function from R^d_1 x ... x R^d_K to R^d accepting a list of K arrays of shape (n, d_K), computing the "ground barycentre".
+        Function from R^d_1 x ... x R^d_K to R^d accepting a list of K arrays of
+        shape (n, d_K), computing the "ground barycentre".
+    a : array-like, optional
+        Array of shape (n,) representing weights of the barycentre. If None, it
+        is initialised to uniform. For the 'L2_barycentric_proj' method, a
+        remains constant, and for the 'true_fixed_point' method, it is only the
+        initialisation.
     max_its : int, optional
         Maximum number of iterations (default is 5).
+    method : str, optional
+        Barycentre method: 'L2_barycentric_proj' (default) for Euclidean
+        barycentric projection, or 'true_fixed_point' for iterates using the
+        North West Corner multi-marginal gluing method.
     stop_threshold : float, optional
         If the iterations move less than this (relatively), terminate.
     pbar : bool, optional
         Whether to display a progress bar (default is False).
     log : bool, optional
         Whether to return the list of iterations (default is False).
+    clean_measure : bool, optional
+        For method=='true_fixed_point', whether to clean the discrete measure
+        (X, a) at each iteration to remove duplicate points and sum their
+        weights (default is False).
 
     Returns
     -------
     X : array-like
         Array of shape (n, d) representing barycentre points.
-    log_dict : list of array-like, optional
+    a : array-like
+        Array of shape (n,) representing barycentre weights. Only returned if
+        method is 'true_fixed_point'.
+    log_dict : dict, optional
         log containing the exit status and list of iterations if log is True.
     """
     nx = get_backend(X, Y_list[0])
     K = len(Y_list)
     iterator = trange(max_its) if pbar else range(max_its)
     n = X.shape[0]
-    a = nx.from_numpy(ot.unif(n), type_as=X)
+    if a is None:
+        a = nx.from_numpy(ot.unif(n), type_as=X)
     X_list = [nx.copy(X)] if log else []
+    a_list = [nx.copy(a)] if log and method == 'true_fixed_point' else []
     exit_status = 'Unknown'
+    assert method in ['L2_barycentric_proj', 'true_fixed_point'], \
+        "Method must be 'L2_barycentric_proj' or 'true_fixed_point'"
 
     try:
         for _ in iterator:
             X_prev = nx.copy(X)
+            a_prev = nx.copy(a) if method == 'true_fixed_point' else a
+
             pi_list = [
                 ot.emd(a, b_list[k], cost_list[k](X, Y_list[k]))
                 for k in range(K)]
-            Y_perm = []
-            for k in range(K):
-                Y_perm.append(n * pi_list[k] @ Y_list[k])
+
+            Y_perm = []  # list of K arrays of shape (N, d_k) to apply B to
+            if method == 'L2_barycentric_proj':
+                for k in range(K):  # L2 barycentric projection of pi_k
+                    Y_perm.append((1 / a[:, None]) * pi_list[k] @ Y_list[k])
+            elif method == 'true_fixed_point':
+                # North West Corner gluing of pi_k
+                J, w = NorthWestMMGluing(pi_list)
+                # J is a (N, K) array of indices, w is a (N,) array of weights
+                # Each Y_perm[k] is a (N, d_k) array of some points in Y_list[k]
+                Y_perm = [Y_list[k][J[:, k]] for k in range(K)]
+                a = w  # update barycentre weights
+
             X = B(Y_perm)
+
+            if clean_measure and method == 'true_fixed_point':
+                # clean the discrete measure (X, a) to remove duplicates
+                X, a = clean_discrete_measure(X, a)
+
             if log:
                 X_list.append(X)
+                if method == 'true_fixed_point':
+                    a_list.append(a)
 
             # stationary criterion: move less than the threshold
-            diff = ot.emd2(a, a, ot.dist(X, X_prev))
+            diff = ot.emd2(a, a_prev, ot.dist(X, X_prev))
             current = nx.sum(X_prev**2)
             if diff / current < stop_threshold:
                 exit_status = 'Stationary Point'
@@ -207,8 +261,17 @@ def solve_OT_barycenter_fixed_point(X, Y_list, b_list, cost_list, B,
 
     except StoppingCriterionReached:
         if log:
-            return X, {'X_list': X_list, 'exit_status': exit_status}
-        return X
+            log_dict = {
+                'X_list': X_list, 'exit_status': exit_status, 'a_list': a_list}
+            if method == 'true_fixed_point':
+                return X, a, log_dict
+            else:
+                return X, log_dict
+
+        if method == 'true_fixed_point':
+            return X, a
+        else:
+            return X
 
 
 def multi_marginal_L2_cost_tensor(Y_list, weights):
@@ -295,7 +358,8 @@ def solve_MMOT(b_list, M):
     return (pi_flat.value).reshape(*m_list)
 
 
-def solve_w2_barycentre_multi_marginal(Y_list, b_list, weights, eps=1e-5):
+def solve_w2_barycentre_multi_marginal(Y_list, b_list, weights, eps=1e-5,
+                                       clean_measure=False):
     r"""
     Computes the W2 barycentre of the given measures Y_list with weights using
     the multi-marginal solver. The output will consider that there is mass on a
@@ -337,6 +401,9 @@ def solve_w2_barycentre_multi_marginal(Y_list, b_list, weights, eps=1e-5):
         y_slice = np.stack([Y_list[k][idx_tuple[k]] for k in range(K)], axis=0)
         X[i] = weights @ y_slice
     a = a / np.sum(a)
+
+    if clean_measure:
+        X, a = clean_discrete_measure(X, a)
     return X, a
 
 
@@ -542,3 +609,88 @@ def solve_gmm_barycenter_fixed_point(means, covs,
     if log:
         return means, covs, {'means_its': means_its, 'covs_its': covs_its}
     return means, covs
+
+
+def NorthWestMMGluing(pi_list, precision=1e-15, log=False):
+    """
+    Glue the transport plans (pi_1, ..., pi_K) using the (multi-marginal)
+    North-West Corner method. Instead of outputting the full K+1-multi-marginal
+    transport plan gamma in Pi(a, b_1, ..., b_K) with marginals gamma_0k pi_k,
+    this function provides an array J of shape (N, K) where each J[i] is of the
+    form (J[i, 1], ..., J[i, K]) with each J[i, k] between 0 and n_k-1, and a
+    weight vector w of size N, such that the K-marginal rho := gamma_1...K =
+    sum_i w_i delta_{y_{1, J[i, 1]}, ..., y_{K, J[i, K]}}, or in terms of
+    tensors, rho[j_1, ..., j_K] = 1(exists i : (j_1, ..., j_K) = J[i]) w_i. This
+    representation is useful for its memory efficiency, as it avoids storing the
+    full K+1-marginal transport plan.
+
+    If log=True, the function computes the full K+1-marginal transport plan and
+    stores it in log_dict['gamma].
+
+    Parameters
+    ----------
+    pi_list : list of arrays (n, n_k)
+        List of transport plans.
+    precision : float, optional
+        Precision for the North-West Corner method (considering that
+        |x|<precision means x==0). Default is 1e-15.
+    log : bool, optional
+        If True, return a log dictionary (computationally expensive).
+
+    Returns
+    -------
+    J : array (N, K)
+        The indices (J[i, 1], ..., J[i, K]) of the K-plan rho.
+    w : array (N,)
+        The weights w_i of the K-plan rho.
+    log_dict : dict, optional
+        If log=True, a dictionary containing the full K+1-marginal transport
+        plan under the key 'gamma'.
+    """
+    nx = get_backend(pi_list[0])
+    a = nx.sum(pi_list[0], axis=1)  # common first marginal a in Delta_n
+    nk_list = [pi.shape[1] for pi in pi_list]  # list of n_k
+    K = len(pi_list)
+    n = pi_list[0].shape[0]  # number of points in the first marginal
+    gamma = None
+
+    log_dict = {'precision': precision}
+    if log:  # n x n_1 x ... x n_K tensor
+        gamma = nx.zeros([n] + nk_list, type_as=pi_list[0])
+
+    gamma_weights = {}  # dict of (j_1, ..., j_K) : weight
+    P_list = [nx.copy(pi) for pi in pi_list]  # copy of the transport plans
+
+    for i in range(n):
+        # jjs[k] is the list of indices j in [0, n_k - 1] such that Pk[i, j] >0
+        jjs = [nx.where(P[i, :] > precision)[0] for P in P_list]
+        # list [0, ..., 0] of size K for use with jjs: current indices in jjs
+        jj_idx = [0] * K
+        u = a[i]  # mass at i, will decrease to 0 as we fill gamma[i, :]
+
+        while u > precision:  # while there is mass to add to gamma[i, :]
+            # current multi-index j_1 ... j_K
+            jj = tuple(jjs[k][jj_idx[k]] for k in range(K))
+            # min transport plan value: min_k pi_k[i, j_k]
+            v = nx.min([P_list[k][i, jj[k]] for k in range(K)])
+            if log:  # assign mass v to gamma[i, j_1, ..., j_K]
+                gamma[(i,) + jj] = v
+            if jj in gamma_weights:
+                gamma_weights[jj] += v
+            else:
+                gamma_weights[jj] = v
+            u -= v  # at i, we u-v mass left to assign
+            for k in range(K):  # update plan copies Pk
+                P_list[k][i, jj[k]] -= v  # Pk[i, j_k] has v less mass left
+                if P_list[k][i, jj[k]] < precision:
+                    # move to next index in jjs[k] if Pk[i, j_k] is empty
+                    jj_idx[k] += 1
+
+    log_dict['gamma'] = gamma
+    J = list(gamma_weights.keys())  # list of multi-indices (j_1, ..., j_K)
+    J = to_int_array(nx.from_numpy(np.array(J), type_as=pi_list[0]))
+    w = list(gamma_weights.values())  # list of weights w_i
+    w = nx.from_numpy(np.array(w), type_as=pi_list[0])
+    if log:
+        return J, w, log_dict
+    return J, w
