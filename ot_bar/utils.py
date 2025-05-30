@@ -252,3 +252,21 @@ def clean_discrete_measure(X, a, tol=1e-10):
     Y = X[tuple(unique_X_idx), :]
     b = nx.from_numpy(np.array(b), type_as=X)
     return Y, b
+
+
+def sample_simplex(n):
+    """
+    Samples a point uniformly from the n-dimensional simplex.
+
+    Parameters
+    ----------
+    n : int
+        Dimension of the simplex.
+
+    Returns
+    -------
+    ndarray
+        A point sampled uniformly from the n-dimensional simplex.
+    """
+    x = np.random.rand(n)
+    return x / np.sum(x)

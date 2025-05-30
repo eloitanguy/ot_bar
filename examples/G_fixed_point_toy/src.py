@@ -12,7 +12,7 @@ c_list = ['#7ED321', '#4A90E2', '#9013FE']
 c_bar = '#D0021B'
 
 
-def test_gluing_validity(gamma, J, w, pi_list, precision=1e-15):
+def test_gluing_validity(gamma, J, w, pi_list):
     """
     Test the validity of the North-West gluing.
     """

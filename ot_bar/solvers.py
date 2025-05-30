@@ -143,7 +143,7 @@ def solve_OT_barycenter_GD(Y_list, b_list, weights, cost_list, n, d,
 
 def solve_OT_barycenter_fixed_point(X, Y_list, b_list, cost_list, B, a=None,
                                     max_its=5, method='L2_barycentric_proj',
-                                    stop_threshold=1e-5, pbar=False, log=False,
+                                    stop_threshold=1e-2, pbar=False, log=False,
                                     clean_measure=False):
     """
     Solves the OT barycenter problem using the fixed point algorithm, iterating
@@ -251,7 +251,7 @@ def solve_OT_barycenter_fixed_point(X, Y_list, b_list, cost_list, B, a=None,
 
             # stationary criterion: move less than the threshold
             diff = ot.emd2(a, a_prev, ot.dist(X, X_prev))
-            current = nx.sum(X_prev**2)
+            current = nx.sum(X_prev**2) / X_prev.shape[0]
             if diff / current < stop_threshold:
                 exit_status = 'Stationary Point'
                 raise StoppingCriterionReached
@@ -663,7 +663,7 @@ def NorthWestMMGluing(pi_list, precision=1e-15, log=False):
 
     for i in range(n):
         # jjs[k] is the list of indices j in [0, n_k - 1] such that Pk[i, j] >0
-        jjs = [nx.where(P[i, :] > precision)[0] for P in P_list]
+        jjs = [nx.where(P[i, :] > 0)[0] for P in P_list]
         # list [0, ..., 0] of size K for use with jjs: current indices in jjs
         jj_idx = [0] * K
         u = a[i]  # mass at i, will decrease to 0 as we fill gamma[i, :]
@@ -682,7 +682,7 @@ def NorthWestMMGluing(pi_list, precision=1e-15, log=False):
             u -= v  # at i, we u-v mass left to assign
             for k in range(K):  # update plan copies Pk
                 P_list[k][i, jj[k]] -= v  # Pk[i, j_k] has v less mass left
-                if P_list[k][i, jj[k]] < precision:
+                if P_list[k][i, jj[k]] == 0:
                     # move to next index in jjs[k] if Pk[i, j_k] is empty
                     jj_idx[k] += 1
 

@@ -742,7 +742,7 @@ for xp_idx in range(3):
 
 plt.subplots_adjust(hspace=0.4)
 plt.subplots_adjust(wspace=0.4)
-plt.suptitle('Ratios of energy and time between FP and MM, varying $n, d, K$ for $N_{\mathrm{FP}} = (n-1)K + 1$', fontsize=16)
+plt.suptitle('Ratios of energy and time between FP and MM, varying $n, d, K$ for $N_{\\mathrm{FP}} = (n-1)K + 1$', fontsize=16)
 plt.savefig('N_fp_vs_mm.pdf', bbox_inches='tight')
 plt.show()
 
