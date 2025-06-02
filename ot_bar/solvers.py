@@ -663,7 +663,7 @@ def NorthWestMMGluing(pi_list, precision=1e-15, log=False):
 
     for i in range(n):
         # jjs[k] is the list of indices j in [0, n_k - 1] such that Pk[i, j] >0
-        jjs = [nx.where(P[i, :] > 0)[0] for P in P_list]
+        jjs = [nx.to_numpy(nx.where(P[i, :] > precision)[0]) for P in P_list]
         # list [0, ..., 0] of size K for use with jjs: current indices in jjs
         jj_idx = [0] * K
         u = a[i]  # mass at i, will decrease to 0 as we fill gamma[i, :]
@@ -672,7 +672,7 @@ def NorthWestMMGluing(pi_list, precision=1e-15, log=False):
             # current multi-index j_1 ... j_K
             jj = tuple(jjs[k][jj_idx[k]] for k in range(K))
             # min transport plan value: min_k pi_k[i, j_k]
-            v = nx.min([P_list[k][i, jj[k]] for k in range(K)])
+            v = nx.min(nx.stack([P_list[k][i, jj[k]] for k in range(K)]))
             if log:  # assign mass v to gamma[i, j_1, ..., j_K]
                 gamma[(i,) + jj] = v
             if jj in gamma_weights:
@@ -688,9 +688,8 @@ def NorthWestMMGluing(pi_list, precision=1e-15, log=False):
 
     log_dict['gamma'] = gamma
     J = list(gamma_weights.keys())  # list of multi-indices (j_1, ..., j_K)
-    J = to_int_array(nx.from_numpy(np.array(J), type_as=pi_list[0]))
-    w = list(gamma_weights.values())  # list of weights w_i
-    w = nx.from_numpy(np.array(w), type_as=pi_list[0])
+    J = to_int_array(nx.from_numpy(J, type_as=pi_list[0]))
+    w = nx.stack(list(gamma_weights.values()))
     if log:
         return J, w, log_dict
     return J, w

@@ -1,0 +1,26 @@
+{
+    "seed": 0,
+    "n": 10,
+    "d": 10,
+    "K_list": [
+        2,
+        3,
+        4,
+        5,
+        6
+    ],
+    "n_samples": 10,
+    "stop_threshold": 1e-10,
+    "fp_its_list": [
+        1,
+        5,
+        10,
+        50
+    ],
+    "gd_its": 1000,
+    "gd_eta": 10,
+    "gd_gamma": 1,
+    "gd_a_unif": true,
+    "mm_eps": 1e-05,
+    "cost": "L2"
+}

@@ -4,7 +4,7 @@
 import numpy as np
 import matplotlib.pylab as pl
 import matplotlib.pyplot as plt
-import ot
+import ot  # type: ignore
 from ot_bar.utils import TT, TN
 from ot_bar.solvers import solve_OT_barycenter_fixed_point, StoppingCriterionReached
 import torch
@@ -104,6 +104,9 @@ plt.show(block=True)
 
 
 # %% Define ground barycentre function B and test loss decrease
+np.random.seed(42)
+torch.manual_seed(42)
+X_init = torch.rand(n, d, device=device, dtype=torch.double)
 
 
 def B(y, p, q, its=250, lr=1, log=False, stop_threshold=1e-20):
@@ -112,7 +115,7 @@ def B(y, p, q, its=250, lr=1, log=False, stop_threshold=1e-20):
     measure supports y: List(n, d_k).
     Output: (n, d) array
     """
-    x = torch.randn(n, d, device=device, dtype=torch.double)
+    x = torch.randn(y[0].shape[0], d, device=device, dtype=torch.double)
     x.requires_grad_(True)
     loss_list = [1e10]
     opt = Adam([x], lr=lr)
@@ -136,10 +139,7 @@ def B(y, p, q, its=250, lr=1, log=False, stop_threshold=1e-20):
 
 
 # %%
-np.random.seed(42)
-torch.manual_seed(42)
 fig = plt.figure(figsize=(len(p_list) * 3, len(q_list) * 3))
-X_init = torch.rand(n, d, device=device, dtype=torch.double)
 
 for p_idx, p in enumerate(p_list):
     for q_idx, q in enumerate(q_list):
@@ -154,7 +154,7 @@ for p_idx, p in enumerate(p_list):
         ax.set_yscale('log')
         ax.set_title(f'B loss p={p}, q={q}', fontsize=12)
 
-plt.savefig('B_losses.pdf')
+plt.savefig('B_losses.pdf', bbox_inches='tight')
 
 
 # %% fixed-point for (p, q) = (1.5, 1.5)
@@ -173,7 +173,7 @@ for t, X in enumerate(log_dict['X_list']):
     ax.axis('equal')
     ax.axis('off')
 plt.tight_layout()
-plt.savefig('p_norm_q_barycentre_iterations.pdf')
+plt.savefig('p_norm_q_barycentre_iterations.pdf', bbox_inches='tight')
 
 
 # %% plot energy evolution
@@ -195,7 +195,7 @@ plt.xlabel('Iteration')
 plt.xticks(range(its + 1))
 plt.ylabel('V')
 plt.tight_layout()
-plt.savefig('p_norm_q_barycentre_V.pdf')
+plt.savefig('p_norm_q_barycentre_V.pdf', bbox_inches='tight')
 
 
 # %% Plot final iteration next to the measures
@@ -203,11 +203,76 @@ plt.figure(1, (6, 4.5))
 for Y in Y_list_visu:
     plt.scatter(*TN(Y.T), alpha=0.5)
 plt.scatter(*TN(X_bar.T) + np.array([[40], [20]]), alpha=0.5)
-plt.title("Barycentre for the cost $|x-y|_{3/2}^{3/2}$", fontsize=16)
+plt.title("Barycentre with H for the cost $|x-y|_{3/2}^{3/2}$", fontsize=16)
 plt.axis('equal')
 plt.axis('off')
 plt.tight_layout()
-plt.savefig('p_norm_q_barycentre.pdf')
+plt.savefig('p_norm_q_barycentre.pdf', bbox_inches='tight')
+
+# %% fixed-point of G for (p, q) = (1.5, 1.5)
+p, q = 1.5, 1.5
+cost_list = [lambda x, y: p_norm_q_cost_matrix(x, y, p, q)] * K
+its = 2
+X_bar, a_bar, log_dict = solve_OT_barycenter_fixed_point(
+    X_init, Y_list, b_list, cost_list, lambda y: B(y, p, q), max_its=its,
+    log=True, stop_threshold=0., method='true_fixed_point')
+
+# %% plot barycentre iterations
+fig = plt.figure(figsize=(its * 3, 3))
+for t, (X, a) in enumerate(zip(log_dict['X_list'], log_dict['a_list'])):
+    ax = fig.add_subplot(1, its + 1, t + 1)
+    ax.scatter(*TN(X.T), alpha=0.2 * TN(a) * a.shape[0], s=20)
+    ax.set_title(f'Iteration {t}', fontsize=14, y=0.95)
+    ax.axis('equal')
+    ax.axis('off')
+plt.tight_layout()
+plt.savefig('p_norm_q_barycentre_iterations_G.pdf', bbox_inches='tight')
+
+
+# %% plot energy evolution
+def V(X, a, Y_list, b_list, p, q):
+    v = 0
+    for k in range(K):
+        M = p_norm_q_cost_matrix(X, Y_list[k], p, q)
+        v += (1 / K) * ot.emd2(a, b_list[k], M)
+    if isinstance(v, torch.Tensor):
+        return v.item()
+    return v
+
+
+plt.figure(figsize=(3, 3))
+V_list = [V(X, a, Y_list, b_list, p, q)
+          for (X, a) in zip(log_dict['X_list'], log_dict['a_list'])]
+plt.plot(V_list, linewidth=5, alpha=.8, color=colours[1])
+plt.title('V evolution by iteration')
+plt.xlabel('Iteration')
+plt.xticks(range(its + 1))
+plt.ylabel('V')
+plt.tight_layout()
+plt.savefig('p_norm_q_barycentre_V_G.pdf', bbox_inches='tight')
+
+# %% plot support size evolution
+plt.figure(figsize=(3, 3))
+support_size_list = [a.shape[0]for a in log_dict['a_list']]
+plt.plot(support_size_list, linewidth=5, alpha=.8, color=colours[1])
+plt.title('Support size by iteration')
+plt.xlabel('Iteration')
+plt.xticks(range(its + 1))
+plt.ylabel('Support size')
+plt.tight_layout()
+plt.savefig('p_norm_q_barycentre_support_size_G.pdf', bbox_inches='tight')
+
+# %% Plot final iteration next to the measures
+plt.figure(1, (6, 4.5))
+for Y in Y_list_visu:
+    plt.scatter(*TN(Y.T), alpha=0.5)
+plt.scatter(*TN(X_bar.T) + np.array([[40], [20]]),
+            alpha=0.2 * TN(a_bar) * a_bar.shape[0], s=20)
+plt.title("Barycentre with G for the cost $|x-y|_{3/2}^{3/2}$", fontsize=16)
+plt.axis('equal')
+plt.axis('off')
+plt.tight_layout()
+plt.savefig('p_norm_q_barycentre_G.pdf', bbox_inches='tight')
 
 # %% apply fixed-point algorithm for different p, q
 np.random.seed(0)

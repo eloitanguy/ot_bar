@@ -10,7 +10,7 @@
         100
     ],
     "n_samples": 10,
-    "stop_threshold": 1e-10,
+    "stop_threshold": 1e-08,
     "fp_its_list": [
         1,
         5,

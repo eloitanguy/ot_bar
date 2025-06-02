@@ -68,7 +68,7 @@ nk_choices = np.arange(10, 100)
 d_choices = np.arange(1, 20)
 
 
-if not os.path.exists('free_ratio_results.npy') or True:
+if not os.path.exists('free_ratio_results.npy'):
     # dim 0: samples, dim 1: [theory, MM, T, init]
     free_ratio_results = np.zeros((n_samples, 4))
     for i in trange(n_samples, desc='Free ratio experiment'):
@@ -95,15 +95,15 @@ violinplot_kwargs = {
 # Ratio vs N_init
 plt.subplot(1, 3, 1)
 plt.violinplot(free_ratio_results[:, 3], **violinplot_kwargs)
-plt.xticks([1], ['$N\ /\ N_{\mathrm{init}}$'])
+plt.xticks([1], ['$N\ /\ N_0$'])
 plt.ylabel('Support Ratio')
-plt.title('Ratio with $N_{\mathrm{init}}$')
+plt.title('Ratio with $N_0$')
 plt.grid(True)
 
 # Theory ratio
 plt.subplot(1, 3, 2)
 plt.violinplot(free_ratio_results[:, 0], **violinplot_kwargs)
-plt.xticks([1], ['$N\ /\ \left(n + T\sum_k n_k - TK\\right)$'])
+plt.xticks([1], ['$N\ /\ \left(N_0 + T\sum_k n_k - TK\\right)$'])
 plt.ylabel('Support Ratio')
 plt.title('Ratio with Theory')
 plt.grid(True)
@@ -142,7 +142,7 @@ nk_choices = np.arange(10, 100)
 d_choices = np.arange(1, 20)
 
 
-if not os.path.exists('point_cloud_ratio_results.npy') or True:
+if not os.path.exists('point_cloud_ratio_results.npy'):
     # dim 0: samples, dim 1: [theory, MM, T, init]
     point_cloud_ratio_results = np.zeros((n_samples, 4))
     for i in trange(n_samples, desc='Free ratio experiment'):
@@ -165,15 +165,15 @@ plt.figure(figsize=(12, 4))
 # Ratio vs N_init
 plt.subplot(1, 3, 1)
 plt.violinplot(point_cloud_ratio_results[:, 3], **violinplot_kwargs)
-plt.xticks([1], ['$N\ /\ N_{\mathrm{init}}$'])
+plt.xticks([1], ['$N\ /\ N_0$'])
 plt.ylabel('Support Ratio')
-plt.title('Ratio with $N_{\mathrm{init}}$')
+plt.title('Ratio with $N_0$')
 plt.grid(True)
 
 # Theory ratio
 plt.subplot(1, 3, 2)
 plt.violinplot(point_cloud_ratio_results[:, 0], **violinplot_kwargs)
-plt.xticks([1], ['$N\ /\ \left(n + T\sum_k n_k - TK\\right)$'])
+plt.xticks([1], ['$N\ /\ \left(N_0 + T\sum_k n_k - TK\\right)$'])
 plt.ylabel('Support Ratio')
 plt.title('Ratio with Theory')
 plt.grid(True)
