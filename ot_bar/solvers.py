@@ -368,13 +368,17 @@ def solve_w2_barycentre_multi_marginal(Y_list, b_list, weights, eps=1e-5,
     Parameters
     ----------
     Y_list : list of array-like
-        List of K arrays, each of shape (m_k, d), representing the points in each marginal.
+        List of K arrays, each of shape (m_k, d), representing the points in
+        each marginal.
     b_list : list of array-like
         List of K arrays, each of shape (m_k) representing weights.
     weights : array-like
         Array of shape (K,), representing the weights for each marginal.
     eps : float, optional
         Threshold for considering mass on a point (default is 1e-5).
+    clean_measure : bool, optional
+        Whether to clean the discrete measure (X, a) to remove duplicates and
+        sum their weights (default is False).
 
     Returns
     -------
@@ -688,7 +692,7 @@ def NorthWestMMGluing(pi_list, precision=1e-15, log=False):
 
     log_dict['gamma'] = gamma
     J = list(gamma_weights.keys())  # list of multi-indices (j_1, ..., j_K)
-    J = to_int_array(nx.from_numpy(J, type_as=pi_list[0]))
+    J = to_int_array(nx.from_numpy(np.array(J), type_as=pi_list[0]))
     w = nx.stack(list(gamma_weights.values()))
     if log:
         return J, w, log_dict

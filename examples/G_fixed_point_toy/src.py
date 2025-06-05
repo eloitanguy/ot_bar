@@ -144,7 +144,7 @@ a = ot.unif(n)
 X_init = np.random.rand(n, 2)  # Initial barycentre points
 X, a, log_dict = solve_OT_barycenter_fixed_point(
     X_init, Y_list, b_list, cost_list, B, a=a, max_its=10, pbar=True, log=True,
-    method='true_fixed_point', clean_measure=True)
+    method='true_fixed_point', clean_measure=True, stop_threshold=1e-3)
 
 # %% Compute the true barycentre
 X_true, a_true = solve_w2_barycentre_multi_marginal(
@@ -207,3 +207,5 @@ fig.legend(handles, labels, loc='lower center', ncol=K + 1, fontsize=18,
 plt.tight_layout()
 plt.savefig('true_fp_toy_iterations.pdf', format='pdf', bbox_inches='tight')
 plt.show()
+
+# %%
