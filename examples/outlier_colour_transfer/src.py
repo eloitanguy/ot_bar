@@ -158,34 +158,40 @@ plt.imshow(IC1m2)
 n_im = 6
 n_rows = 2
 size = 3
-fig, axes = plt.subplots(n_rows, n_im // n_rows, 
+fig, axes = plt.subplots(n_rows, n_im // n_rows,
                          figsize=((n_im // n_rows) * size, size * n_rows))
 
+IA1 = plt.imread('A1.jpg').astype(np.float64) / 255
 axes[0, 0].imshow(IA1)
 axes[0, 0].axis('off')
 axes[0, 0].set_title('Source 1')
 
+IB1o = plt.imread('B1o.jpg').astype(np.float64) / 255
 axes[0, 1].imshow(IB1o)
 axes[0, 1].axis('off')
 axes[0, 1].set_title('Source 2 (outlier)')
 
+IB2 = plt.imread('B2.jpg').astype(np.float64) / 255
 axes[0, 2].imshow(IB2)
 axes[0, 2].axis('off')
 axes[0, 2].set_title('Source 3')
 
+IC1 = plt.imread('C1.jpg').astype(np.float64) / 255
 axes[1, 0].imshow(IC1)
 axes[1, 0].axis('off')
 axes[1, 0].set_title('Input')
 
+IC1m = plt.imread('C1_matched_bar.jpg').astype(np.float64) / 255
 axes[1, 1].imshow(IC1m)
 axes[1, 1].axis('off')
 axes[1, 1].set_title('Input matched to W1 bar')
 
+IC1m2 = plt.imread('C1_matched_bar2.jpg').astype(np.float64) / 255
 axes[1, 2].imshow(IC1m2)
 axes[1, 2].axis('off')
 axes[1, 2].set_title('Input matched to W2 bar')
 plt.tight_layout()
-plt.savefig('bar_W1_W2_matching.jpg', format='jpg')
+plt.savefig('bar_W1_W2_matching.jpg', format='jpg', dpi=300)
 plt.show()
 
 

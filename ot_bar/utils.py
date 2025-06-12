@@ -194,7 +194,9 @@ def to_int_array(x):
 def clean_discrete_measure(X, a, tol=1e-10):
     r"""
     Simplifies a discrete measure by consolidating duplicate points and summing
-    their weights.
+    their weights. Given a discrete measure with support X (n, d) and weights a
+    (n), returns a points Y (m, d) and weights b (m) such that Y is the set of
+    unique points in X and b is the sum of weights in a for each point in Y
 
     Parameters
     ----------
@@ -216,10 +218,6 @@ def clean_discrete_measure(X, a, tol=1e-10):
     b : ndarray
         Array of shape (m,) representing the summed weights for each unique
         point in `Y`.
-
-    Given a discrete measure with support X (n, d) and weights a (n, ), returns
-    a measure Y (m, d) and weights b (m, ) such that - Y is the unique set of
-    points in X - b is the sum of weights in a for each point in Y
     """
     nx = get_backend(X, a)
     D = ot.dist(X, X)
